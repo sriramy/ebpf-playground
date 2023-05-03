@@ -1,4 +1,4 @@
-# Xcluster/ovl - xdp
+# Xcluster/ovl - eBPF
 
 Experiments and tests with
 [XDP](https://en.wikipedia.org/wiki/Express_Data_Path) and
