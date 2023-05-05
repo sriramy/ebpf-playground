@@ -3,21 +3,27 @@
    Copyright (c) Nordix Foundation
 */
 
-#include <cmd.h>
-#include <die.h>
+#include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <poll.h>
 #include <unistd.h>
-#include <bpf/xsk.h>
+#include <xdp/xsk.h>
 #include <net/if.h>
 #include <linux/if_ether.h>
 #include <arpa/inet.h>
 
 #define D(x)
-#define Dx(x) x
+#define Dx(x) 
+
+#define die(msg...) \
+	do {                    \
+		fprintf(stderr, msg); \
+		exit(1); \
+	} while(0);
+
 
 // This struct is used in xdp-tutorial and kernel sample
 struct xsk_umem_info {
@@ -57,35 +63,11 @@ static struct xsk_umem_info* create_umem(unsigned nfq)
 }
 
 
-static int cmdReceive(int argc, char **argv)
+static int start_rx(char const* dev, int q, unsigned nfq)
 {
-	char const* dev;
-	char const* queue = NULL;
-	char const* fillq = NULL;
-	struct Option options[] = {
-		{"help", NULL, 0,
-		 "receive [options]\n"
-		 "  Use an AF_XDP socket to receive packets"},
-		{"dev", &dev, REQUIRED,
-		 "The device to use"},
-		{"queue", &queue, 0,
-		 "The RX queue to use. Default 0"},
-		{"fillq", &fillq, 0,
-		 "UMEM buffers in the fill queue. Default 512"},
-		{0, 0, 0, 0}
-	};
-	int nopt = parseOptionsOrDie(argc, argv, options);
-	argc -= nopt;
-	argv += nopt;
 	unsigned int ifindex = if_nametoindex(dev);
 	if (ifindex == 0)
 		die("Unknown interface [%s]\n", dev);
-	int q = 0;
-	if (queue != NULL)
-		q = atoi(queue);
-	unsigned nfq = 512;
-	if (fillq != NULL)
-		nfq = atoi(fillq);
 
 	// (just checking?)
 	uint32_t prog_id = 0;
@@ -170,6 +152,53 @@ static int cmdReceive(int argc, char **argv)
 	
 	return EXIT_SUCCESS;
 }
-__attribute__ ((__constructor__)) static void addCommand(void) {
-	addCmd("receive", cmdReceive);
+
+static struct option long_options[] = {
+	{"help", no_argument, NULL, 'h'},
+	{"dev", required_argument, NULL, 'd'},
+	{"queue", required_argument, NULL, 'q'},
+	{"fillq", required_argument, NULL, 'f'},
+	{NULL, 0, NULL, 0}
+};
+
+void print_usage()
+{
+	printf("Usage: \n");
+	for(int i = 0; i < sizeof(long_options)/sizeof(struct option); i++) {
+		printf("--%s (%c) arg: %s\n",
+			long_options[i].name, long_options[i].val,
+			long_options[i].has_arg ? "<required>" : "");
+	}
+	printf("\n");
+}
+
+int main(int argc, char **argv)
+{
+	char ch;
+	char const *dev;
+	int queue = 0;
+	int fillq = 512;
+
+	while ((ch = getopt_long(argc, argv, "hd:q:f:", long_options, NULL)) != -1) {
+		switch (ch)
+		{
+		case 'h':
+			print_usage();
+			break;
+		case 'd':
+			dev = strdup(optarg);
+			break;
+		case 'q':
+			queue = atoi(optarg);
+			break;
+		case 'f':
+			fillq = atoi(optarg);
+			break;
+		default:
+			break;
+		}
+	}
+	argc -= optind;
+	argv += optind;
+	return start_rx(dev, queue, fillq);
 }
