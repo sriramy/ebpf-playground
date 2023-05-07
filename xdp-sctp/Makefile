@@ -22,7 +22,10 @@ CFLAGS := -I$(BPFD)/usr/include -I${XDP_TOOLS}/headers -I$(KSRC)/tools/include
 LDFLAGS := -L$(BPFD)/usr/lib64 -L$(XDP_TOOLS)/lib/libxdp -lrt -lelf -lz -lbpf -lxdp
 BPF_CFLAGS ?= -I$(BPFD)/usr/include
 
-all: $(X) $(XDP_OBJ)
+all: $(BUILD) $(X) $(XDP_OBJ)
+
+$(BUILD):
+	mkdir -p $(BUILD)
 
 $(BUILD)/%.o : %.c
 	$(CC) -c -Wall $(CFLAGS) $< -o $@
@@ -45,4 +48,4 @@ $(XDP_OBJ): $(BUILD)/%.o: %.c
 
 .PHONY: clean
 clean:
-	rm -f $(X) $(OBJ) $(XDP_OBJ) ${XDP_OBJ:.o=.ll}
+	rm -rf $(BUILD)
