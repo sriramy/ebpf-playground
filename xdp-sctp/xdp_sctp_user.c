@@ -10,13 +10,14 @@
 #include <string.h>
 #include <poll.h>
 #include <unistd.h>
+#include <xdp/libxdp.h>
 #include <xdp/xsk.h>
 #include <net/if.h>
 #include <linux/if_ether.h>
 #include <arpa/inet.h>
 
-#define D(x)
-#define Dx(x) 
+#define D(x) x
+#define Dx(x) x
 
 #define die(msg...) \
 	do {                    \
@@ -62,6 +63,35 @@ static struct xsk_umem_info* create_umem(unsigned nfq)
 	return u;
 }
 
+static struct xdp_program *load_xdp_program(int ifindex, enum xdp_attach_mode attach_mode)
+{
+	char errmsg[1024];
+	int err;
+	struct xdp_program *xdp_prog;
+
+	xdp_prog = xdp_program__open_file("/usr/local/lib/bpf/xdp_sctp_kern.o", NULL, NULL);
+	err = libxdp_get_error(xdp_prog);
+	if (err) {
+		libxdp_strerror(err, errmsg, sizeof(errmsg));
+		die("ERROR: program loading failed: %s\n", errmsg);
+	}
+
+	err = xdp_program__attach(xdp_prog, ifindex, attach_mode, 0);
+	if (err) {
+		libxdp_strerror(err, errmsg, sizeof(errmsg));
+		die("ERROR: attaching program failed: %s\n", errmsg);
+	}
+
+	return xdp_prog;
+}
+
+static void remove_xdp_program(struct xdp_program *xdp_prog,
+		int ifindex, enum xdp_attach_mode attach_mode)
+{
+	int err = xdp_program__detach(xdp_prog, ifindex, attach_mode, 0);
+	if (err)
+		die("Could not detach XDP program. Error: %s\n", strerror(-err));
+}
 
 static int start_rx(char const* dev, int q, unsigned nfq)
 {
@@ -76,21 +106,39 @@ static int start_rx(char const* dev, int q, unsigned nfq)
 	if (rc != 0)
 		die("Failed bpf_xdp_query_id ingress; %s\n", strerror(-rc));
 
+	struct xdp_program *xdp_prog = load_xdp_program(ifindex, XDP_MODE_NATIVE);
+	if (xdp_prog == NULL)
+		die("ERROR: xdp program not loaded: %s\n", strerror(errno));
+	struct bpf_object *bpf_obj = xdp_program__bpf_obj(xdp_prog);
+	if (bpf_obj == NULL)
+		die("ERROR: bpf object not found: %s\n", strerror(errno));
+
 	struct xsk_umem_info* uinfo = create_umem(nfq);
 	struct xsk_socket_config xsk_cfg;
 
 	struct xsk_socket *ixsk;
 	struct xsk_ring_cons rx;
 	struct xsk_ring_prod tx;
+	memset(&xsk_cfg, 0, sizeof(xsk_cfg));
 	xsk_cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 	xsk_cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
-	xsk_cfg.xdp_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD;
+	xsk_cfg.libbpf_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD;
 	xsk_cfg.bind_flags = XDP_COPY;
 	rc = xsk_socket__create(&ixsk, dev, q, uinfo->umem, &rx, &tx, &xsk_cfg);
 	if (rc != 0)
 		die("Failed xsk_socket__create (ingress); %s\n", strerror(-rc));
 	Dx(printf("Need wakeup; %s\n", xsk_ring_prod__needs_wakeup(&tx) ? "Yes":"No"));
-	
+
+	/* We also need to load the xsks_map */
+	struct bpf_map *map = bpf_object__find_map_by_name(bpf_obj, "xdp_sctp_xsks");
+	int xsks_map_fd = bpf_map__fd(map);
+	if (xsks_map_fd < 0)
+		die("ERROR: no xsks map found: %s\n", strerror(xsks_map_fd));
+
+	rc = xsk_socket__update_xskmap(ixsk, xsks_map_fd);
+	if (rc != 0)
+		die("Update of BPF map failed(%d)\n", rc);
+
 #define RX_BATCH_SIZE      64
 	uint32_t idx_rx;
 	struct pollfd fds;

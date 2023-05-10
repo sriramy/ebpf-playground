@@ -1,4 +1,5 @@
+config.mk
 *.o
 *.ll
 .vscode/
-build
+*/build

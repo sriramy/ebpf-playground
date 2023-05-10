@@ -56,6 +56,14 @@ for x in AF_XDP-example AF_XDP-forwarding; do
 	done
 done
 
+# local bpf programs
+gittop=$(git rev-parse --show-toplevel)
+for x in xdp-sctp; do
+	mkdir -p $tmp/root/$x
+	make -C $gittop/$x -j$(nproc) > /dev/null
+	DESTDIR=$tmp make -C $gittop/$x install > /dev/null
+done
+
 cd $tmp
 tar cf "$1" *
 cd - > /dev/null

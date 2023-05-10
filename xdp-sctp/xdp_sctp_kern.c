@@ -7,14 +7,24 @@
 #include <netinet/in.h>
 #include <bpf/bpf_endian.h>
 
+#if 1
+#define Dx(fmt, ...)                                      \
+    ({                                                         \
+        char ____fmt[] = fmt;                                  \
+        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
+    })
+#else
+#define Dx(fmt, ...)
+#endif
+
 // Socket map for redirect to user-space
 struct {
 	__uint(type, BPF_MAP_TYPE_XSKMAP);
 	__uint(key_size, sizeof(int));
 	__uint(value_size, sizeof(int));
-	__uint(max_entries, 4); /* Must be > nqueues for the nic */
+	__uint(max_entries, 1); /* Must be > nqueues for the nic */
 	__uint(pinning, LIBBPF_PIN_BY_NAME); 
-} xsks_map SEC(".maps");
+} xdp_sctp_xsks SEC(".maps");
 
 static __always_inline int handle_ipv4(struct xdp_md *xdp)
 {
@@ -34,7 +44,7 @@ static __always_inline int handle_ipv4(struct xdp_md *xdp)
 		return XDP_PASS;
 	}
 
-	return bpf_redirect_map(&xsks_map, xdp->rx_queue_index, XDP_PASS);
+	return bpf_redirect_map(&xdp_sctp_xsks, xdp->rx_queue_index, XDP_PASS);
 }
 
 static __always_inline int handle_ipv6(struct xdp_md *xdp)
@@ -55,7 +65,7 @@ static __always_inline int handle_ipv6(struct xdp_md *xdp)
 		return XDP_PASS;
 	}
 
-	return bpf_redirect_map(&xsks_map, xdp->rx_queue_index, XDP_PASS);
+	return bpf_redirect_map(&xdp_sctp_xsks, xdp->rx_queue_index, XDP_PASS);
 }
 
 SEC("xdp.frags")

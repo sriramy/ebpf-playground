@@ -139,8 +139,8 @@ test_start_empty() {
 	test -n "$TOPOLOGY" && \
 		. $($XCLUSTER ovld network-topology)/$TOPOLOGY/Envsettings
 	test -n "$__nvm" || __nvm=2
-	test -n "$__nrouters" || __nrouters=0
-	xcluster_start network-topology iptools .
+	test -n "$__nrouters" || __nrouters=1
+	xcluster_start network-topology iptools sctp .
 }
 
 test_start() {
