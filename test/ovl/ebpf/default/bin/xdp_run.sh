@@ -15,5 +15,5 @@ test -n $dev || die "No device provided!"
 
 cmd="$prog --dev=$dev"
 log=/var/log/$prog-$dev.log
-PATH="/root/$prog/:$PATH" nohup $cmd > $log 2>&1 &
-xdp-loader status
+PATH="/usr/local/bin/:$PATH" nohup $cmd > $log 2>&1 &
+xdp-loader status $dev

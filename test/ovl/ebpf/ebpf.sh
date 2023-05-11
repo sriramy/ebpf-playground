@@ -11,6 +11,7 @@ prg=$(basename $0)
 dir=$(dirname $0); dir=$(readlink -f $dir)
 me=$dir/$prg
 tmp=/tmp/${prg}_$$
+gittop=$(git rev-parse --show-toplevel)
 
 die() {
     echo "ERROR: $*" >&2
@@ -54,19 +55,6 @@ get_kdir() {
 	echo $kdir
 }
 
-##   libbpf_build
-##     Build libbpf and bpftool for the current kernel ($__kver)
-cmd_libbpf_build() {
-	local kdir=$(get_kdir)
-	cd $kdir/tools/lib/bpf || die cd
-	make -j$(nproc) || die "Make libbpf"
-	make DESTDIR=root prefix=/usr install || die "Make libbpf install"
-	make DESTDIR=$XCLUSTER_WORKSPACE/sys prefix=/usr install \
-		|| die "Make libbpf install sys"
-	cd $kdir/tools/bpf/bpftool
-	make -j$(nproc) || die "Make bpftool"
-}
-
 ##   perf_build
 ##     Build the kernel "perf" tool
 cmd_perf_build() {
@@ -74,6 +62,26 @@ cmd_perf_build() {
 	cd $kdir/tools/perf || die cd
 	make || die "Make perf"
 }
+
+##   libbpf_build
+##     Build libbpf from submodule
+cmd_libbpf_build() {
+	cd $(get_kdir)/tools/lib/bpf || die cd
+	export BUILD_STATIC_ONLY=1
+	make clean
+	make -j$(nproc) || die "Make libbpf"
+	make DESTDIR=root prefix=/usr install || die "Make libbpf install"
+	make DESTDIR=$XCLUSTER_WORKSPACE/sys prefix=/usr install \
+		|| die "Make libbpf install sys"
+}
+
+##   bpftool_build
+##     Build bpftool from submodule
+cmd_bpftool_build() {
+	cd $(get_kdir)/tools/bpf/bpftool
+	make -j$(nproc) || die "Make bpftool"
+}
+
 
 ##   libxdp_build
 ##     Build static libxdp. Requires libbpf
@@ -84,6 +92,12 @@ cmd_libxdp_build() {
 	# Dynamic libs doesn't work since libbpf.a is not built with -fPIC
 	export BUILD_STATIC_ONLY=1
 	export BPFTOOL=$(get_kdir)/tools/bpf/bpftool/bpftool
+	export LIBBPF_DIR=$(get_kdir)/tools/lib/bpf
+	export LIBBPF_INCLUDE_DIR=$XCLUSTER_WORKSPACE/sys/usr/include
+	export LIBBPF_LIB_DIR=$XCLUSTER_WORKSPACE/sys/usr/lib64
+        export LIBBPF_CFLAGS="-I${LIBBPF_INCLUDE_DIR} -L${LIBBPF_LIB_DIR}"
+        export LIBBPF_LDLIBS="-lbpf"
+	export DEBUG_CONFIGURE=1
 	./configure
 	make -j$(nproc) || die make
 	make DESTDIR=$XCLUSTER_WORKSPACE/sys install || die "make install"

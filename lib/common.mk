@@ -2,11 +2,6 @@
 ## Common targets needed to build an xdp application
 ##
 
-# PREFIX is environment variable, but if it is not set, then set default value
-ifeq ($(PREFIX),)
-    PREFIX := /usr/local
-endif
-
 all: $(BUILD) $(X) $(BPF_OBJ)
 
 $(BUILD):
