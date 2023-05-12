@@ -2,4 +2,5 @@
 !.gitignore
 !include
 !lib
+!bin
 !sbin

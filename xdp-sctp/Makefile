@@ -2,9 +2,8 @@
 ## Make xdp_sctp, to send SCTP packets into an XSK
 ##
 
-include ../lib/defines.mk
+X := xdp-sctp
+LIB_DIR := ../lib
 
-X := $(BUILD)/xdp-sctp
-
-include ../lib/common.mk
-
+include $(LIB_DIR)/defines.mk
+include $(LIB_DIR)/common.mk

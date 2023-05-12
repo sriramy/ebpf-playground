@@ -2,16 +2,16 @@
 ## Common targets needed to build an xdp application
 ##
 
-all: $(BUILD) $(X) $(BPF_OBJ)
+all: $(BUILD) $(BUILD)/$(X) $(BPF_OBJ)
 
 $(BUILD):
 	mkdir -p $(BUILD)
 
 $(BUILD)/%.o : %.c
-	$(CC) -c -Wall $(CFLAGS) $< -o $@
+	$(CC) -c -Wall $(USER_CFLAGS) $< -o $@
 
-$(X): $(OBJ)
-	$(CC) -o $(X) $(OBJ) $(LDFLAGS)
+$(BUILD)/$(X): $(OBJ)
+	$(CC) -o $(BUILD)/$(X) $(OBJ) $(USER_LDFLAGS)
 
 $(BPF_OBJ): $(BUILD)/%.o: %.c
 	$(CLANG) -S \
@@ -28,7 +28,7 @@ $(BPF_OBJ): $(BUILD)/%.o: %.c
 
 install:
 	install -d $(DESTDIR)$(PREFIX)/bin
-	install -m 755 $(X) $(DESTDIR)$(PREFIX)/bin
+	install -m 755 $(BUILD)/$(X) $(DESTDIR)$(PREFIX)/bin
 	install -d $(DESTDIR)$(PREFIX)/lib/bpf
 	install -m 644 $(BPF_OBJ) $(DESTDIR)$(PREFIX)/lib/bpf
 
