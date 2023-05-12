@@ -22,7 +22,7 @@ cp -R $dir/default/* $tmp
 gittop=$(git rev-parse --show-toplevel)
 for x in lib xdp-sctp; do
 	make -C $gittop/$x -j$(nproc) > /dev/null
-	DESTDIR=$tmp make -C $gittop/$x install > /dev/null
+	DESTDIR=$tmp PREFIX=/usr make -C $gittop/$x install > /dev/null
 done
 
 cd $tmp

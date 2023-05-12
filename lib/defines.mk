@@ -24,13 +24,17 @@ CC := gcc
 
 PREFIX?=/usr/local
 LIBDIR?=$(PREFIX)/lib
+BINDIR?=$(PREFIX)/bin
 SBINDIR?=$(PREFIX)/sbin
 HDRDIR?=$(PREFIX)/include/xdp
 DATADIR?=$(PREFIX)/share
 MANDIR?=$(DATADIR)/man
+BPF_OBJECT_DIR ?=$(LIBDIR)/bpf
 
 CFLAGS ?= -O2 -g
 BPF_CFLAGS ?= -Wno-visibility
+
+DEFINES := -DBPF_OBJECT_PATH=\"$(BPF_OBJECT_DIR)\"
 
 ifeq ($(DEBUG),1)
 DEFINES += -DDEBUG

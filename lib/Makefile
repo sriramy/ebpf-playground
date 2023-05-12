@@ -6,18 +6,9 @@ include defines.mk
 all: libbpf bpftool libxdp xdploader
 
 .PHONY: clean
-clean: libbpf_clean bpftool_clean libxdp_clean
+clean: libbpf_clean bpftool_clean libxdp_clean xdploader_clean
 	$(Q)find $(LIB_INSTALL) -type f -not -name .gitignore -delete
 	$(Q)find $(LIB_INSTALL) -type d -empty -delete
-
-.PHONY: install
-install:
-	$(Q)install -m 0755 -d $(DESTDIR)$(HDRDIR) $(P)
-	$(Q)install -m 644 $(LIB_INSTALL)/include/* -t $(DESTDIR)$(HDRDIR) $(P)
-	$(Q)install -m 0755 -d $(DESTDIR)$(LIBDIR) $(P)
-	$(Q)install -m 755 $(LIB_INSTALL)/lib/* -t $(DESTDIR)$(LIBDIR) $(P)
-	$(Q)install -m 0755 -d $(DESTDIR)$(SBINDIR) $(P)
-	$(Q)install -m 755 $(LIB_INSTALL)/sbin/* -t $(DESTDIR)$(SBINDIR) $(P)
 
 libbpf: $(LIBBPF)
 bpftool: libbpf $(BPFTOOL)
@@ -67,8 +58,24 @@ libxdp_clean:
 XDP_LOADER_SOURCES := $(wildcard xdp-tools/xdp-loader*.[ch]) 
 $(XDP_LOADER): $(XDP_LOADER_SOURCES)
 	@echo ; echo "  xdp-loader"
-	$(Q)$(MAKE) -C xdp-tools BPFTOOL="../../../$(LIB_INSTALL)/sbin/bpftool" xdp-loader $(P)
+	$(Q)$(MAKE) -C xdp-tools BUILD_STATIC_ONLY=1 BPFTOOL="../../../$(LIB_INSTALL)/sbin/bpftool" xdp-loader $(P)
 	$(Q)cp -fp xdp-tools/xdp-loader/xdp-loader $(LIB_INSTALL)/bin/ $(P)
 
 .PHONY: xdploader_clean
+xdploader_clean:
 	$(Q)find $(LIB_INSTALL) -type f -name xdp-loader -delete
+
+install: all
+	$(Q)install -m 0755 -d $(DESTDIR)$(HDRDIR)/bpf $(P)
+	$(Q)install -m 644 $(LIB_INSTALL)/include/bpf/* -t $(DESTDIR)$(HDRDIR)/bpf $(P)
+	$(Q)install -m 0755 -d $(DESTDIR)$(HDRDIR)/xdp $(P)
+	$(Q)install -m 644 $(LIB_INSTALL)/include/xdp/* -t $(DESTDIR)$(HDRDIR)/xdp $(P)
+	$(Q)install -m 0755 -d $(DESTDIR)$(LIBDIR) $(P)
+	$(Q)install -m 755 $(LIB_INSTALL)/lib/libbpf.a -t $(DESTDIR)$(LIBDIR) $(P)
+	$(Q)install -m 755 $(LIB_INSTALL)/lib/libxdp.a -t $(DESTDIR)$(LIBDIR) $(P)
+	$(Q)install -m 0755 -d $(DESTDIR)$(LIBDIR)/bpf $(P)
+	$(Q)install -m 755 $(LIB_INSTALL)/lib/bpf/* -t $(DESTDIR)$(LIBDIR)/bpf $(P)
+	$(Q)install -m 0755 -d $(DESTDIR)$(BINDIR) $(P)
+	$(Q)install -m 755 $(LIB_INSTALL)/bin/* -t $(DESTDIR)$(BINDIR) $(P)
+	$(Q)install -m 0755 -d $(DESTDIR)$(SBINDIR) $(P)
+	$(Q)install -m 755 $(LIB_INSTALL)/sbin/* -t $(DESTDIR)$(SBINDIR) $(P)
