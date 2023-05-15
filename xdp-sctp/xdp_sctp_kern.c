@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 #include <bpf/bpf_endian.h>
 
-#if 1
+#if DEBUG
 #define Dx(fmt, ...)                                      \
     ({                                                         \
         char ____fmt[] = fmt;                                  \
@@ -44,7 +44,9 @@ static __always_inline int handle_ipv4(struct xdp_md *xdp)
 		return XDP_PASS;
 	}
 
-	return bpf_redirect_map(&xdp_sctp_xsks, xdp->rx_queue_index, XDP_PASS);
+	int rc = bpf_redirect_map(&xdp_sctp_xsks, xdp->rx_queue_index, XDP_PASS);
+	Dx("SCTP XDP redirect, len=%ld, rc=%d\n", (data_end - data), rc);
+	return rc;
 }
 
 static __always_inline int handle_ipv6(struct xdp_md *xdp)

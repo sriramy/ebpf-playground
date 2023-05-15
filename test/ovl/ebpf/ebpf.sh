@@ -14,14 +14,14 @@ tmp=/tmp/${prg}_$$
 gittop=$(git rev-parse --show-toplevel)
 
 die() {
-    echo "ERROR: $*" >&2
-    rm -rf $tmp
-    exit 1
+	echo "ERROR: $*" >&2
+	rm -rf $tmp
+	exit 1
 }
 help() {
-    grep '^##' $0 | cut -c3-
-    rm -rf $tmp
-    exit 0
+	grep '^##' $0 | cut -c3-
+	rm -rf $tmp
+	exit 0
 }
 test -n "$1" || help
 echo "$1" | grep -qi "^help\|-h" && help
@@ -54,27 +54,27 @@ cmd_env() {
 ##
 cmd_test() {
 	if test "$__list" = "yes"; then
-        grep '^test_' $me | cut -d'(' -f1 | sed -e 's,test_,,'
-        return 0
-    fi
+		grep '^test_' $me | cut -d'(' -f1 | sed -e 's,test_,,'
+		return 0
+	fi
 
 	cmd_env
-    start=starts
-    test "$__xterm" = "yes" && start=start
-    rm -f $XCLUSTER_TMP/cdrom.iso
+	start=starts
+	test "$__xterm" = "yes" && start=start
+	rm -f $XCLUSTER_TMP/cdrom.iso
 
-    if test -n "$1"; then
-        for t in $@; do
-            test_$t
-        done
-    else
-        for t in start; do
-            test_$t
-        done
-    fi      
+	if test -n "$1"; then
+		for t in $@; do
+			test_$t
+		done
+	else
+		for t in start; do
+			test_$t
+		done
+	fi
 
-    now=$(date +%s)
-    tlog "Xcluster test ended. Total time $((now-begin)) sec"
+	now=$(date +%s)
+	tlog "Xcluster test ended. Total time $((now-begin)) sec"
 
 }
 
@@ -85,6 +85,7 @@ test_start_empty() {
 		. $($XCLUSTER ovld network-topology)/$TOPOLOGY/Envsettings
 	test -n "$__nvm" || __nvm=2
 	test -n "$__nrouters" || __nrouters=1
+	export xcluster_PATH="/usr/local/bin:/sbin:/usr/sbin:/bin:/usr/bin"
 	xcluster_start network-topology iptools sctp .
 }
 
@@ -102,15 +103,15 @@ shift
 grep -q "^cmd_$cmd()" $0 $hook || die "Invalid command [$cmd]"
 
 while echo "$1" | grep -q '^--'; do
-    if echo $1 | grep -q =; then
+	if echo $1 | grep -q =; then
 	o=$(echo "$1" | cut -d= -f1 | sed -e 's,-,_,g')
 	v=$(echo "$1" | cut -d= -f2-)
 	eval "$o=\"$v\""
-    else
+	else
 	o=$(echo "$1" | sed -e 's,-,_,g')
 	eval "$o=yes"
-    fi
-    shift
+	fi
+	shift
 done
 unset o v
 long_opts=`set | grep '^__' | cut -d= -f1`

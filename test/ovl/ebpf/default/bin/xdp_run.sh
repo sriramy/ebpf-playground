@@ -1,6 +1,7 @@
 #! /bin/sh
 
 . /etc/profile
+export PATH="/usr/local/bin:$PATH"
 
 die() {
 	echo "ERROR: $*" >&2
@@ -13,7 +14,8 @@ test -n $prog || die "No program provided!"
 dev=$2
 test -n $dev || die "No device provided!"
 
+xdp-loader unload $dev --all
 cmd="$prog --dev=$dev"
 log=/var/log/$prog-$dev.log
-PATH="/usr/local/bin/:$PATH" nohup $cmd > $log 2>&1 &
-PATH="/usr/local/bin/:$PATH" xdp-loader status $dev
+nohup $cmd &> $log &
+xdp-loader status $dev

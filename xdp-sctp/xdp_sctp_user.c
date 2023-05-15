@@ -16,8 +16,13 @@
 #include <linux/if_ether.h>
 #include <arpa/inet.h>
 
+#ifdef DEBUG
 #define D(x) x
 #define Dx(x) x
+#else
+#define D(x)
+#define Dx(x)
+#endif
 
 #define die(msg...) \
 	do {                    \
@@ -123,7 +128,7 @@ static int start_rx(char const* dev, int q, unsigned nfq)
 	xsk_cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 	xsk_cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
 	xsk_cfg.libbpf_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD;
-	xsk_cfg.bind_flags = XDP_COPY;
+	xsk_cfg.bind_flags = 0;
 	rc = xsk_socket__create(&ixsk, dev, q, uinfo->umem, &rx, &tx, &xsk_cfg);
 	if (rc != 0)
 		die("Failed xsk_socket__create (ingress); %s\n", strerror(-rc));
@@ -212,7 +217,7 @@ static struct option long_options[] = {
 void print_usage()
 {
 	printf("Usage: \n");
-	for(int i = 0; i < sizeof(long_options)/sizeof(struct option); i++) {
+	for(int i = 0; i < sizeof(long_options)/sizeof(struct option) - 1; i++) {
 		printf("--%s (%c) arg: %s\n",
 			long_options[i].name, long_options[i].val,
 			long_options[i].has_arg ? "<required>" : "");
@@ -223,7 +228,7 @@ void print_usage()
 int main(int argc, char **argv)
 {
 	char ch;
-	char const *dev;
+	char const *dev = NULL;
 	int queue = 0;
 	int fillq = 512;
 
@@ -232,7 +237,7 @@ int main(int argc, char **argv)
 		{
 		case 'h':
 			print_usage();
-			break;
+			return 0;
 		case 'd':
 			dev = strdup(optarg);
 			break;
@@ -246,6 +251,12 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+
+	if (dev == NULL) {
+		print_usage();
+		die("--dev is a required argument\n");
+	}
+
 	argc -= optind;
 	argv += optind;
 	return start_rx(dev, queue, fillq);
