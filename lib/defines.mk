@@ -61,7 +61,7 @@ BPF_OBJ := $(BPF_SRC:%.c=$(BUILD)/%.o)
 CFLAGS += -I$(LIB_INSTALL)/include -I${XDP_TOOLS}/headers
 LDLIBS += "-lelf -lz"
 USER_CFLAGS += -I$(LIB_INSTALL)/include
-USER_LDFLAGS := -L$(LIB_INSTALL)/lib -lrt -lxdp -lbpf -lelf -lz
+USER_LDFLAGS := -L$(LIB_INSTALL)/lib -lrt -lcommon -lxdp -lbpf -lelf -lz
 BPF_CFLAGS += -I$(LIB_INSTALL)/include
 
 BPFTOOL := $(LIB_INSTALL)/sbin/bpftool

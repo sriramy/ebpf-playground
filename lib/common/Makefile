@@ -24,3 +24,9 @@ $(COMMON_OBJ): $(COMMON_SOURCES)
 .PHONY: clean
 clean:
 	rm -f $(COMMON_OBJ) $(COMMON_AR)
+
+install: all
+	$(Q)install -m 0755 -d $(DESTDIR)/include/common $(P)
+	$(Q)install -m 644 *.h -t $(DESTDIR)/include/common $(P)
+	$(Q)install -m 0755 -d $(DESTDIR)/lib $(P)
+	$(Q)install -m 644 libcommon.a -t $(DESTDIR)/lib $(P)

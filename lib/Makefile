@@ -69,7 +69,7 @@ xdploader_clean:
 $(COMMON):
 	@echo ; echo "  common"
 	$(Q)$(MAKE) -C common CFLAGS="-I../$(LIB_INSTALL)/include" $(P)
-	$(Q)cp -fp common/libcommon.a $(LIB_INSTALL)/lib
+	$(Q)$(MAKE) -C common DESTDIR="../$(LIB_INSTALL)/" install $(P)
 
 .PHONY: common_clean
 common_clean:
@@ -81,6 +81,8 @@ install: all
 	$(Q)install -m 644 $(LIB_INSTALL)/include/bpf/* -t $(DESTDIR)$(HDRDIR)/bpf $(P)
 	$(Q)install -m 0755 -d $(DESTDIR)$(HDRDIR)/xdp $(P)
 	$(Q)install -m 644 $(LIB_INSTALL)/include/xdp/* -t $(DESTDIR)$(HDRDIR)/xdp $(P)
+	$(Q)install -m 0755 -d $(DESTDIR)$(HDRDIR)/common $(P)
+	$(Q)install -m 644 $(LIB_INSTALL)/include/common/* -t $(DESTDIR)$(HDRDIR)/common $(P)
 	$(Q)install -m 0755 -d $(DESTDIR)$(LIBDIR) $(P)
 	$(Q)install -m 755 $(LIB_INSTALL)/lib/libbpf.a -t $(DESTDIR)$(LIBDIR) $(P)
 	$(Q)install -m 755 $(LIB_INSTALL)/lib/libxdp.a -t $(DESTDIR)$(LIBDIR) $(P)

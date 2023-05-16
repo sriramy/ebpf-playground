@@ -16,57 +16,8 @@
 #include <linux/if_ether.h>
 #include <arpa/inet.h>
 
-#ifdef DEBUG
-#define D(x) x
-#define Dx(x) x
-#else
-#define D(x)
-#define Dx(x)
-#endif
-
-#define die(msg...) \
-	do {                    \
-		fprintf(stderr, msg); \
-		exit(1); \
-	} while(0);
-
-
-// This struct is used in xdp-tutorial and kernel sample
-struct xsk_umem_info {
-	struct xsk_ring_prod fq;
-	struct xsk_ring_cons cq;
-	struct xsk_umem *umem;
-	void *buffer;
-};
-static struct xsk_umem_info* create_umem(unsigned nfq)
-{
-	struct xsk_umem_info* u;
-	u = calloc(1, sizeof(*u));
-
-// XSK_RING_PROD__DEFAULT_NUM_DESCS=2048
-#define NUM_FRAMES XSK_RING_PROD__DEFAULT_NUM_DESCS
-
-	uint64_t buffer_size = XSK_UMEM__DEFAULT_FRAME_SIZE * NUM_FRAMES;
-	if (posix_memalign(&u->buffer, getpagesize(), buffer_size) != 0)
-		die("Can't allocate buffer memory [%s]\n", strerror(errno));
-	int rc = xsk_umem__create(
-		&u->umem, u->buffer, buffer_size, &u->fq, &u->cq, NULL);
-	if (rc != 0)
-		die("Failed to create umem; %s\n", strerror(-rc));
-
-	uint32_t idx;
-	rc = xsk_ring_prod__reserve(&u->fq, nfq, &idx);
-	if (rc != nfq)
-		die("Failed xsk_ring_prod__reserve; %s\n", strerror(-rc));
-	Dx(printf("UMEM fq; reserved %u, idx = %u\n", nfq, idx));
-	int i;
-	for (i = 0; i < nfq; i++, idx++) {
-		*xsk_ring_prod__fill_addr(&u->fq, idx) = i * XSK_UMEM__DEFAULT_FRAME_SIZE;
-	}
-	xsk_ring_prod__submit(&u->fq, nfq);
-
-	return u;
-}
+#include "common/log.h"
+#include "common/umem.h"
 
 static struct xdp_program *load_xdp_program(int ifindex, enum xdp_attach_mode attach_mode)
 {
