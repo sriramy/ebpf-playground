@@ -3,10 +3,10 @@ LIB_INSTALL := $(LIB_DIR)/install
 
 include defines.mk
 
-all: libbpf bpftool libxdp xdploader
+all: libbpf bpftool libxdp xdploader common
 
 .PHONY: clean
-clean: libbpf_clean bpftool_clean libxdp_clean xdploader_clean
+clean: libbpf_clean bpftool_clean libxdp_clean xdploader_clean common_clean
 	$(Q)find $(LIB_INSTALL) -type f -not -name .gitignore -delete
 	$(Q)find $(LIB_INSTALL) -type d -empty -delete
 
@@ -14,6 +14,7 @@ libbpf: $(LIBBPF)
 bpftool: libbpf $(BPFTOOL)
 libxdp: bpftool $(LIBXDP)
 xdploader: libxdp $(XDP_LOADER)
+common: libxdp $(COMMON)
 
 # Detect submodule libbpf source file changes
 LIBBPF_SOURCES := $(wildcard libbpf/src/*.[ch])
@@ -33,7 +34,7 @@ libbpf_clean:
 BPFTOOL_SOURCES := $(wildcard bpftool/src/*.[ch])
 $(BPFTOOL): $(BPFTOOL_SOURCES)
 	@echo ; echo "  bpftool"
-	$(Q)$(MAKE) -C bpftool/src EXTRA_CFLAGS="$(LIBBPF_CFLAGS) --static" $(P)
+	$(Q)$(MAKE) -C bpftool/src EXTRA_CFLAGS="--static" $(P)
 	$(Q)cp -fp bpftool/src/bpftool $(LIB_INSTALL)/sbin $(P)
 
 .PHONY: bpftool_clean
@@ -65,6 +66,16 @@ $(XDP_LOADER): $(XDP_LOADER_SOURCES)
 xdploader_clean:
 	$(Q)find $(LIB_INSTALL) -type f -name xdp-loader -delete
 
+$(COMMON):
+	@echo ; echo "  common"
+	$(Q)$(MAKE) -C common CFLAGS="-I../$(LIB_INSTALL)/include" $(P)
+	$(Q)cp -fp common/libcommon.a $(LIB_INSTALL)/lib
+
+.PHONY: common_clean
+common_clean:
+	$(Q)$(MAKE) -C common clean $(P)
+	$(Q)find $(LIB_INSTALL) -type f -name libcommon.a -delete
+
 install: all
 	$(Q)install -m 0755 -d $(DESTDIR)$(HDRDIR)/bpf $(P)
 	$(Q)install -m 644 $(LIB_INSTALL)/include/bpf/* -t $(DESTDIR)$(HDRDIR)/bpf $(P)
@@ -73,6 +84,7 @@ install: all
 	$(Q)install -m 0755 -d $(DESTDIR)$(LIBDIR) $(P)
 	$(Q)install -m 755 $(LIB_INSTALL)/lib/libbpf.a -t $(DESTDIR)$(LIBDIR) $(P)
 	$(Q)install -m 755 $(LIB_INSTALL)/lib/libxdp.a -t $(DESTDIR)$(LIBDIR) $(P)
+	$(Q)install -m 755 $(LIB_INSTALL)/lib/libcommon.a -t $(DESTDIR)$(LIBDIR) $(P)
 	$(Q)install -m 0755 -d $(DESTDIR)$(LIBDIR)/bpf $(P)
 	$(Q)install -m 755 $(LIB_INSTALL)/lib/bpf/* -t $(DESTDIR)$(LIBDIR)/bpf $(P)
 	$(Q)install -m 0755 -d $(DESTDIR)$(BINDIR) $(P)

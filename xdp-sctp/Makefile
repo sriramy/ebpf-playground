@@ -7,4 +7,4 @@ LIB_DIR := ../lib
 DEBUG := 1
 
 include $(LIB_DIR)/defines.mk
-include $(LIB_DIR)/common.mk
+include $(LIB_DIR)/template.mk

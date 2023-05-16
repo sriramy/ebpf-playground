@@ -20,7 +20,8 @@ endif
 
 LLC ?= llc
 CLANG ?= clang
-CC := gcc
+CC ?= gcc
+AR ?= ar
 
 PREFIX?=/usr/local
 LIBDIR?=$(PREFIX)/lib
@@ -59,7 +60,7 @@ BPF_OBJ := $(BPF_SRC:%.c=$(BUILD)/%.o)
 
 CFLAGS += -I$(LIB_INSTALL)/include -I${XDP_TOOLS}/headers
 LDLIBS += "-lelf -lz"
-USER_CFLAGS += -I$(LIB_INSTALL)/include -I${XDP_TOOLS}/headers
+USER_CFLAGS += -I$(LIB_INSTALL)/include
 USER_LDFLAGS := -L$(LIB_INSTALL)/lib -lrt -lxdp -lbpf -lelf -lz
 BPF_CFLAGS += -I$(LIB_INSTALL)/include
 
@@ -67,4 +68,5 @@ BPFTOOL := $(LIB_INSTALL)/sbin/bpftool
 LIBBPF := $(LIB_INSTALL)/lib/libbpf.a
 LIBXDP := $(LIB_INSTALL)/lib/libxdp.a
 XDP_LOADER := $(LIB_INSTALL)/bin/xdp-loader
+COMMON := $(LIB_INSTALL)/lib/libcommon.a
 LIBBPF_CFLAGS := $(if $(CFLAGS),$(CFLAGS),-g -O2 -Werror -Wall) -fPIC
