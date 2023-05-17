@@ -24,5 +24,6 @@ jobs:
     - name: Run tests
       run: |
         cd test/ovl/ebpf
+        export XC_PATH=${{ runner.temp }}/xcluster
         . Envsettings
         ./ebpf.sh test start
