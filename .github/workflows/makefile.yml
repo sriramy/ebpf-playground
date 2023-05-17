@@ -17,7 +17,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y qemu qemu-kvm qemu-system-x86 xterm screen net-tools cpu-checker
+        sudo apt-get install -y kvm qemu qemu-kvm qemu-system-x86 xterm screen net-tools cpu-checker
 
     - name: Check env
       run: |
