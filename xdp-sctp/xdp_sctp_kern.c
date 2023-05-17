@@ -30,11 +30,9 @@ static __always_inline int handle_ipv4(struct xdp_md *xdp)
 {
 	void *data_end = (void *)(long)xdp->data_end;
 	void *data = (void *)(long)xdp->data;
-	struct ethhdr *eth = data;
 	struct iphdr *iph = data + sizeof(struct ethhdr);
 
-	if (eth + 1 > data_end ||
-	    iph + 1 > data_end)
+	if (iph + 1 > data_end)
 		return XDP_DROP;
 
 	switch (iph->protocol) {
@@ -44,7 +42,8 @@ static __always_inline int handle_ipv4(struct xdp_md *xdp)
 		return XDP_PASS;
 	}
 
-	int rc = bpf_redirect_map(&xdp_sctp_xsks, xdp->rx_queue_index, XDP_PASS);
+	unsigned int rx_queue = xdp->rx_queue_index;
+	int rc = bpf_redirect_map(&xdp_sctp_xsks, rx_queue, XDP_PASS);
 	Dx("SCTP XDP redirect, len=%ld, rc=%d\n", (data_end - data), rc);
 	return rc;
 }
@@ -53,11 +52,9 @@ static __always_inline int handle_ipv6(struct xdp_md *xdp)
 {
 	void *data_end = (void *)(long)xdp->data_end;
 	void *data = (void *)(long)xdp->data;
-	struct ethhdr *eth = data;
 	struct ipv6hdr *ip6h = data + sizeof(struct ethhdr);
 
-	if (eth + 1 > data_end ||
-	    ip6h + 1 > data_end)
+	if (ip6h + 1 > data_end)
 		return XDP_DROP;
 
 	switch (ip6h->nexthdr) {
@@ -67,7 +64,10 @@ static __always_inline int handle_ipv6(struct xdp_md *xdp)
 		return XDP_PASS;
 	}
 
-	return bpf_redirect_map(&xdp_sctp_xsks, xdp->rx_queue_index, XDP_PASS);
+	unsigned int rx_queue = xdp->rx_queue_index;
+	int rc = bpf_redirect_map(&xdp_sctp_xsks, rx_queue, XDP_PASS);
+	Dx("SCTP XDP redirect, len=%ld, rc=%d\n", (data_end - data), rc);
+	return rc;
 }
 
 SEC("xdp.frags")
@@ -83,13 +83,19 @@ int _xdp_sctp_redirect(struct xdp_md *xdp)
 
 	h_proto = eth->h_proto;
 
-	if (h_proto == htons(ETH_P_IP))
-		return handle_ipv4(xdp);
-	else if (h_proto == htons(ETH_P_IPV6))
+	int rc = XDP_PASS;
+	switch(h_proto) {
+	case ETH_P_IP:
+		rc = handle_ipv4(xdp);
+		break;
+	case ETH_P_IPV6:
+		rc = handle_ipv6(xdp);
+		break;
+	default:
+		break;
+	}
 
-		return handle_ipv6(xdp);
-	else
-		return XDP_PASS;
+	return rc;
 }
 
 char _license[] SEC("license") = "GPL";

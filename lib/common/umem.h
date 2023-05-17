@@ -2,6 +2,8 @@
    SPDX-License-Identifier: MIT
    Copyright (c) Nordix Foundation
 */
+#ifndef __COMMON_UMEM_H__
+#define __COMMON_UMEM_H__
 
 #include <xdp/libxdp.h>
 #include <xdp/xsk.h>
@@ -15,3 +17,5 @@ struct xsk_umem_info {
 };
 
 struct xsk_umem_info* create_umem(unsigned nb);
+
+#endif /* __COMMON_UMEM_H__ */

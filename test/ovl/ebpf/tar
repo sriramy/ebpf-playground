@@ -21,7 +21,7 @@ cp -R $dir/default/* $tmp
 # install libbpf, bpftool, libxdp and local XDP progs
 gittop=$(git rev-parse --show-toplevel)
 for x in lib xdp-sctp; do
-	make -C $gittop/$x -j$(nproc) > /dev/null
+	make -C $gittop/$x > /dev/null
 	DESTDIR=$tmp make -C $gittop/$x install > /dev/null
 done
 

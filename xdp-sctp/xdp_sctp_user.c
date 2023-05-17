@@ -17,40 +17,16 @@
 #include <arpa/inet.h>
 
 #include "common/log.h"
+#include "common/prog.h"
 #include "common/umem.h"
 
-static struct xdp_program *load_xdp_program(int ifindex, enum xdp_attach_mode attach_mode)
+
+static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 {
-	char errmsg[1024];
-	int err;
-	struct xdp_program *xdp_prog;
+#if DEBUG
+	libbpf_set_print(__pr_everything);
+#endif
 
-	xdp_prog = xdp_program__open_file("/usr/local/lib/bpf/xdp_sctp_kern.o", NULL, NULL);
-	err = libxdp_get_error(xdp_prog);
-	if (err) {
-		libxdp_strerror(err, errmsg, sizeof(errmsg));
-		die("ERROR: program loading failed: %s\n", errmsg);
-	}
-
-	err = xdp_program__attach(xdp_prog, ifindex, attach_mode, 0);
-	if (err) {
-		libxdp_strerror(err, errmsg, sizeof(errmsg));
-		die("ERROR: attaching program failed: %s\n", errmsg);
-	}
-
-	return xdp_prog;
-}
-
-static void remove_xdp_program(struct xdp_program *xdp_prog,
-		int ifindex, enum xdp_attach_mode attach_mode)
-{
-	int err = xdp_program__detach(xdp_prog, ifindex, attach_mode, 0);
-	if (err)
-		die("Could not detach XDP program. Error: %s\n", strerror(-err));
-}
-
-static int start_rx(char const* dev, int q, unsigned nfq)
-{
 	unsigned int ifindex = if_nametoindex(dev);
 	if (ifindex == 0)
 		die("Unknown interface [%s]\n", dev);
@@ -62,7 +38,8 @@ static int start_rx(char const* dev, int q, unsigned nfq)
 	if (rc != 0)
 		die("Failed bpf_xdp_query_id ingress; %s\n", strerror(-rc));
 
-	struct xdp_program *xdp_prog = load_xdp_program(ifindex, XDP_MODE_NATIVE);
+	struct xdp_program *xdp_prog = load_xdp_program(
+		prog, ifindex, XDP_MODE_NATIVE);
 	if (xdp_prog == NULL)
 		die("ERROR: xdp program not loaded: %s\n", strerror(errno));
 	struct bpf_object *bpf_obj = xdp_program__bpf_obj(xdp_prog);
@@ -162,6 +139,7 @@ static struct option long_options[] = {
 	{"dev", required_argument, NULL, 'd'},
 	{"queue", required_argument, NULL, 'q'},
 	{"fillq", required_argument, NULL, 'f'},
+	{"prog", required_argument, NULL, 'p'},
 	{NULL, 0, NULL, 0}
 };
 
@@ -180,10 +158,11 @@ int main(int argc, char **argv)
 {
 	char ch;
 	char const *dev = NULL;
+	char const *prog = NULL;
 	int queue = 0;
 	int fillq = 512;
 
-	while ((ch = getopt_long(argc, argv, "hd:q:f:", long_options, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "hd:q:f:p:", long_options, NULL)) != -1) {
 		switch (ch)
 		{
 		case 'h':
@@ -198,6 +177,8 @@ int main(int argc, char **argv)
 		case 'f':
 			fillq = atoi(optarg);
 			break;
+		case 'p':
+			prog = strdup(optarg);
 		default:
 			break;
 		}
@@ -206,9 +187,12 @@ int main(int argc, char **argv)
 	if (dev == NULL) {
 		print_usage();
 		die("--dev is a required argument\n");
+	} else if (prog == NULL) {
+		prog = strdup("/usr/local/lib/bpf/xdp_sctp_kern.o");
+		printf("No program provided, using default BPF prog: %s!!!\n", prog);
 	}
 
 	argc -= optind;
 	argv += optind;
-	return start_rx(dev, queue, fillq);
+	return start_rx(dev, prog, queue, fillq);
 }

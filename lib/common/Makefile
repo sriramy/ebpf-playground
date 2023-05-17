@@ -18,7 +18,7 @@ all: $(COMMON_AR)
 $(COMMON_AR): $(COMMON_OBJ)
 	$(AR) rcs $@ $^
 
-$(COMMON_OBJ): $(COMMON_SOURCES)
+%.o: %.c
 	$(CC) -c -Wall $(CFLAGS) $< -o $@
 
 .PHONY: clean
