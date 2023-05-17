@@ -16,12 +16,10 @@ jobs:
 
     - name: Get xcluster
       run: |
-        pwd
-        wget https://github.com/Nordix/xcluster/releases/download/7.8.0/xcluster-7.8.0.tar.xz
-        ls -lrt
-        wget https://github.com/Nordix/xcluster/releases/download/7.8.0/xcluster-7.8.0.tar.xz -O /tmp/$USER/xcluster.tar.xz
-        tar xvf /tmp/$USER/xcluster.tar.xz -C /tmp/$USER/xcluster/
-        ls -lrt /tmp/$USER/
+        mkdir ${{ runner.temp }}/xcluster
+        wget https://github.com/Nordix/xcluster/releases/download/7.8.0/xcluster-7.8.0.tar.xz -O ${{ runner.temp }}/xcluster.tar.xz
+        tar xvf ${{ runner.temp }}/xcluster.tar.xz -C ${{ runner.temp }}/xcluster/
+        find ${{ runner.temp }}
 
     - name: Run tests
       run: |
