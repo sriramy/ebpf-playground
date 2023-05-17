@@ -17,10 +17,11 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y qemu qemu-kvm qemu-system-x86 xterm screen net-tools
+        sudo apt-get install -y qemu qemu-kvm qemu-system-x86 xterm screen net-tools cpu-checker
 
     - name: Check env
       run: |
+        lscpu
         kvm-ok
 
     - name: Get xcluster
