@@ -2,6 +2,7 @@ XC_PATH="${XC_PATH:-$HOME/xc/xcluster}"
 GIT_TOP=$(git rev-parse --show-toplevel)
 
 cd $XC_PATH
+export __kvm="qemu-system-x86_64"
 . ./Envsettings
 export XCLUSTER_OVLPATH=$XC_PATH/ovl:$GIT_TOP/test/ovl
 export __net_setup=$PWD/net-setup.sh
