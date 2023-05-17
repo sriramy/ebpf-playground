@@ -1,4 +1,4 @@
-XC_PATH=$HOME/xc/xcluster
+XC_PATH?=$HOME/xc/xcluster
 GIT_TOP=$(git rev-parse --show-toplevel)
 
 cd $XC_PATH
