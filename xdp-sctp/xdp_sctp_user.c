@@ -19,11 +19,12 @@
 #include "common/log.h"
 #include "common/prog.h"
 #include "common/umem.h"
+#include "common/xsk.h"
 
 
 static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 {
-#if DEBUG
+#if 0
 	libbpf_set_print(__pr_everything);
 #endif
 
@@ -31,46 +32,14 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 	if (ifindex == 0)
 		die("Unknown interface [%s]\n", dev);
 
-	// (just checking?)
-	uint32_t prog_id = 0;
-	int rc;
-	rc = bpf_xdp_query_id(ifindex, 0, &prog_id);
-	if (rc != 0)
-		die("Failed bpf_xdp_query_id ingress; %s\n", strerror(-rc));
-
 	struct xdp_program *xdp_prog = load_xdp_program(
 		prog, ifindex, XDP_MODE_NATIVE);
 	if (xdp_prog == NULL)
 		die("ERROR: xdp program not loaded: %s\n", strerror(errno));
-	struct bpf_object *bpf_obj = xdp_program__bpf_obj(xdp_prog);
-	if (bpf_obj == NULL)
-		die("ERROR: bpf object not found: %s\n", strerror(errno));
 
 	struct xsk_umem_info* uinfo = create_umem(nfq);
-	struct xsk_socket_config xsk_cfg;
-
-	struct xsk_socket *ixsk;
-	struct xsk_ring_cons rx;
-	struct xsk_ring_prod tx;
-	memset(&xsk_cfg, 0, sizeof(xsk_cfg));
-	xsk_cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
-	xsk_cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
-	xsk_cfg.libbpf_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD;
-	xsk_cfg.bind_flags = 0;
-	rc = xsk_socket__create(&ixsk, dev, q, uinfo->umem, &rx, &tx, &xsk_cfg);
-	if (rc != 0)
-		die("Failed xsk_socket__create (ingress); %s\n", strerror(-rc));
-	Dx(printf("Need wakeup; %s\n", xsk_ring_prod__needs_wakeup(&tx) ? "Yes":"No"));
-
-	/* We also need to load the xsks_map */
-	struct bpf_map *map = bpf_object__find_map_by_name(bpf_obj, "xdp_sctp_xsks");
-	int xsks_map_fd = bpf_map__fd(map);
-	if (xsks_map_fd < 0)
-		die("ERROR: no xsks map found: %s\n", strerror(xsks_map_fd));
-
-	rc = xsk_socket__update_xskmap(ixsk, xsks_map_fd);
-	if (rc != 0)
-		die("Update of BPF map failed(%d)\n", rc);
+	struct xdp_sock *xdp_sk = create_xsk(dev, q, uinfo);
+	update_xdp_map(xdp_prog, "xdp_sctp_xsks", xdp_sk->xsk);
 
 #define RX_BATCH_SIZE      64
 	uint32_t idx_rx;
@@ -79,21 +48,20 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 
 		D(printf("Poll enter...\n"));
 		memset(&fds, 0, sizeof(fds));
-		fds.fd = xsk_socket__fd(ixsk);
+		fds.fd = xsk_socket__fd(xdp_sk->xsk);
 		fds.events = POLLIN;
-		rc = poll(&fds, 1, -1);
+		int rc = poll(&fds, 1, -1);
 		if (rc <= 0 || rc > 1)
 			continue;
 		D(printf("Poll returned %d\n", rc));
 
 		idx_rx = 0;
-		rc = xsk_ring_cons__peek(&rx, RX_BATCH_SIZE, &idx_rx);
+		rc = xsk_ring_cons__peek(&xdp_sk->rx, RX_BATCH_SIZE, &idx_rx);
 		if (rc == 0)
 			continue;
 		D(printf("Received packets %d\n", rc));
 
-		// Reserve space in the UMEM fill-queue to return the rexeived
-		// buffers
+		// Reserve space in the UMEM fill-queue to return the received buffers
 		uint32_t idx;
 		if (xsk_ring_prod__reserve(&uinfo->fq, rc, &idx) != rc)
 			die("Failed xsk_ring_prod__reserve items=%d\n", rc);
@@ -106,7 +74,7 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 				 __u32 options;
 			   };
 			*/
-			struct xdp_desc const* d = xsk_ring_cons__rx_desc(&rx, idx_rx);
+			struct xdp_desc const* d = xsk_ring_cons__rx_desc(&xdp_sk->rx, idx_rx);
 			D(printf("Packet received %d\n", d->len));
 			if (d->len < ETH_HLEN) {
 				printf("Short frame %d\n", d->len);
@@ -126,7 +94,7 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 		}
 
 		// Release the buffers from the xsk RX queue
-		xsk_ring_cons__release(&rx, rc);
+		xsk_ring_cons__release(&xdp_sk->rx, rc);
 		// And (re)add them to the UMEM fill queue
 		xsk_ring_prod__submit(&uinfo->fq, rc);
 	}

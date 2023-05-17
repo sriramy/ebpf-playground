@@ -41,3 +41,18 @@ void remove_xdp_program(struct xdp_program *xdp_prog,
 	if (err)
 		die("Could not detach XDP program. Error: %s\n", strerror(-err));
 }
+
+void update_xdp_map(struct xdp_program *xdp_prog, char const *xsk_map, struct xsk_socket *xsk)
+{
+	struct bpf_object *bpf_obj = xdp_program__bpf_obj(xdp_prog);
+	if (bpf_obj == NULL)
+		die("ERROR: bpf object not found: %s\n", strerror(errno));
+	struct bpf_map *map = bpf_object__find_map_by_name(bpf_obj, xsk_map);
+	int xsks_map_fd = bpf_map__fd(map);
+	if (xsks_map_fd < 0)
+		die("ERROR: no xsks map found: %s\n", strerror(xsks_map_fd));
+
+	int rc = xsk_socket__update_xskmap(xsk, xsks_map_fd);
+	if (rc != 0)
+		die("Update of BPF map failed(%d)\n", rc);
+}
