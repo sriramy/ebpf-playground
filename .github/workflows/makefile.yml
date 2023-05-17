@@ -17,9 +17,9 @@ jobs:
     - name: Get xcluster
       run: |
         mkdir ${{ runner.temp }}/xcluster
-        wget https://github.com/Nordix/xcluster/releases/download/7.8.0/xcluster-7.8.0.tar.xz -O ${{ runner.temp }}/xcluster.tar.xz
+        wget -q -O ${{ runner.temp }}/xcluster.tar.xz https://github.com/Nordix/xcluster/releases/download/7.8.0/xcluster-7.8.0.tar.xz
         tar xvf ${{ runner.temp }}/xcluster.tar.xz -C ${{ runner.temp }}/xcluster/
-        find ${{ runner.temp }}
+        ls -lrt ${{ runner.temp }}/xcluster/
 
     - name: Run tests
       run: |
