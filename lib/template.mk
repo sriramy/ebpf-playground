@@ -2,7 +2,7 @@
 ## Common targets needed to build an xdp application
 ##
 
-all: $(BUILD) $(BUILD)/$(X) $(BPF_OBJ)
+all: $(LIB_DIR) $(BUILD) $(BUILD)/$(X) $(BPF_OBJ)
 
 $(BUILD):
 	mkdir -p $(BUILD)

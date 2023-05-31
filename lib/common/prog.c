@@ -12,7 +12,7 @@
 #include "prog.h"
 
 
-struct xdp_program *load_xdp_program(char const *bpf_prog, int ifindex, enum xdp_attach_mode attach_mode)
+struct xdp_program *xdp_prog_load(char const *bpf_prog, int ifindex, enum xdp_attach_mode attach_mode)
 {
 	char errmsg[1024];
 	int err;
@@ -34,7 +34,7 @@ struct xdp_program *load_xdp_program(char const *bpf_prog, int ifindex, enum xdp
 	return xdp_prog;
 }
 
-void remove_xdp_program(struct xdp_program *xdp_prog,
+void xdp_prog_unload(struct xdp_program *xdp_prog,
 		int ifindex, enum xdp_attach_mode attach_mode)
 {
 	int err = xdp_program__detach(xdp_prog, ifindex, attach_mode, 0);
@@ -42,7 +42,7 @@ void remove_xdp_program(struct xdp_program *xdp_prog,
 		die("Could not detach XDP program. Error: %s\n", strerror(-err));
 }
 
-void update_xdp_map(struct xdp_program *xdp_prog, char const *xsk_map, struct xsk_socket *xsk)
+void xdp_map_update(struct xdp_program *xdp_prog, char const *xsk_map, struct xsk_socket *xsk)
 {
 	struct bpf_object *bpf_obj = xdp_program__bpf_obj(xdp_prog);
 	if (bpf_obj == NULL)

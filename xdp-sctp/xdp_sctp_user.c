@@ -16,87 +16,71 @@
 #include <linux/if_ether.h>
 #include <arpa/inet.h>
 
+#include <xdp/libxdp.h>
+#include <xdp/xsk.h>
+
 #include "common/log.h"
+#include "common/mempool.h"
+#include "common/port.h"
 #include "common/prog.h"
-#include "common/umem.h"
-#include "common/xsk.h"
 
 
 static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 {
-#if 0
-	libbpf_set_print(__pr_everything);
-#endif
-
 	unsigned int ifindex = if_nametoindex(dev);
 	if (ifindex == 0)
 		die("Unknown interface [%s]\n", dev);
 
-	struct xdp_program *xdp_prog = load_xdp_program(
+	struct xdp_program *xdp_prog = xdp_prog_load(
 		prog, ifindex, XDP_MODE_NATIVE);
-	if (xdp_prog == NULL)
+	if (!xdp_prog)
 		die("ERROR: xdp program not loaded: %s\n", strerror(errno));
+	D(printf("xdp_prog_load success\n"));
 
-	struct xsk_umem_info* uinfo = create_umem(nfq);
-	struct xdp_sock *xdp_sk = create_xsk(dev, q, uinfo);
-	update_xdp_map(xdp_prog, "xdp_sctp_xsks", xdp_sk->xsk);
+	struct mempool *mp = mempool_create(&mempool_params_default, &umem_config_default);
+	if (!mp)
+		die("ERROR: Memory pool NOT created: %s\n", strerror(errno));
+	D(printf("mempool_create success\n"));
 
-#define RX_BATCH_SIZE      64
-	uint32_t idx_rx;
-	struct pollfd fds;
+	struct port_params pparms = {
+		.xsk_config.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
+		.xsk_config.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
+		.xsk_config.libxdp_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD,
+		.xsk_config.bind_flags = 0,
+		.mp = mp,
+		.queue = q
+	};
+	pparms.ifname = strdup(dev);
+
+	struct port *p = port_create(&pparms);
+	if (!p)
+		die("ERROR: Port NOT created: %s\n", strerror(errno));
+	D(printf("port_create success\n"));
+
+	struct pkt_burst rx_burst;
+	memset(&rx_burst, 0, sizeof(rx_burst));
+
 	for (;;) {
+		port_rx_burst_prep(p, mp->fill_size);
+		port_rx_burst(p, &rx_burst);
+		for (int i = 0; i < rx_burst.nb_pkts; i++) {
+			uint64_t addr = rx_burst.addr[i];
+			uint32_t len = rx_burst.len[i];
 
-		D(printf("Poll enter...\n"));
-		memset(&fds, 0, sizeof(fds));
-		fds.fd = xsk_socket__fd(xdp_sk->xsk);
-		fds.events = POLLIN;
-		int rc = poll(&fds, 1, -1);
-		if (rc <= 0 || rc > 1)
-			continue;
-		D(printf("Poll returned %d\n", rc));
-
-		idx_rx = 0;
-		rc = xsk_ring_cons__peek(&xdp_sk->rx, RX_BATCH_SIZE, &idx_rx);
-		if (rc == 0)
-			continue;
-		D(printf("Received packets %d\n", rc));
-
-		// Reserve space in the UMEM fill-queue to return the received buffers
-		uint32_t idx;
-		if (xsk_ring_prod__reserve(&uinfo->fq, rc, &idx) != rc)
-			die("Failed xsk_ring_prod__reserve items=%d\n", rc);
-
-		for (int i = 0; i < rc; i++, idx_rx++) {
-			/* // Rx/Tx descriptor
-			   struct xdp_desc {
-			     __u64 addr;
-				 __u32 len;
-				 __u32 options;
-			   };
-			*/
-			struct xdp_desc const* d = xsk_ring_cons__rx_desc(&xdp_sk->rx, idx_rx);
-			D(printf("Packet received %d\n", d->len));
-			if (d->len < ETH_HLEN) {
-				printf("Short frame %d\n", d->len);
+			D(printf("Packet received %d\n", len));
+			if (len < ETH_HLEN) {
+				printf("Short frame %d\n", len);
 				continue;
 			}
-			uint8_t *pkt = xsk_umem__get_data(uinfo->buffer, d->addr);
-			Dx(printf(
-				   " addr=%llu, pkt=%p, buffer=%p (%p)\n",
-				   d->addr, pkt, uinfo->buffer, uinfo->buffer+d->addr));
+			uint8_t *pkt = xsk_umem__get_data(mp->addr, addr);
+			Dx(printf(" addr=%lu, pkt=%p, buffer=%p (%p)\n",
+				addr, pkt, mp->addr, mp->addr + addr));
 			struct ethhdr* h = (struct ethhdr*)pkt;
-			printf(
-				"Received packet; len=%d, proto 0x%04x\n",
-				d->len, ntohs(h->h_proto));
-			D(printf(
-				  "UMEM fq; %u\n", xsk_prod_nb_free(&uinfo->fq, 0)));
-			*xsk_ring_prod__fill_addr(&uinfo->fq, idx++) = d->addr;
+			printf("Received packet; len=%d, proto 0x%04x\n",
+				len, ntohs(h->h_proto));
+			D(printf("UMEM fq; %u\n", xsk_prod_nb_free(&mp->fq, 0)));
 		}
-
-		// Release the buffers from the xsk RX queue
-		xsk_ring_cons__release(&xdp_sk->rx, rc);
-		// And (re)add them to the UMEM fill queue
-		xsk_ring_prod__submit(&uinfo->fq, rc);
+		port_rx_burst_done(p, &rx_burst);
 	}
 	
 	return EXIT_SUCCESS;

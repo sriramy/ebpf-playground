@@ -19,9 +19,12 @@ mkdir -p $tmp
 cp -R $dir/default/* $tmp
 
 # install libbpf, bpftool, libxdp and local XDP progs
+log "Building local XDP programs"
 gittop=$(git rev-parse --show-toplevel)
 for x in lib xdp-sctp; do
+	log "  make $x"
 	make -C $gittop/$x > /dev/null
+	log "  make $x install"
 	DESTDIR=$tmp make -C $gittop/$x install > /dev/null
 done
 

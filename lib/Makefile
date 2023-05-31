@@ -66,7 +66,10 @@ $(XDP_LOADER): $(XDP_LOADER_SOURCES)
 xdploader_clean:
 	$(Q)find $(LIB_INSTALL) -type f -name xdp-loader -delete
 
-$(COMMON):
+# Detect common source file changes
+COMMON_SOURCES := $(wildcard common/*.[ch]) 
+
+$(COMMON): $(COMMON_SOURCES)
 	@echo ; echo "  common"
 	$(Q)$(MAKE) -C common CFLAGS="-I../$(LIB_INSTALL)/include" $(P)
 	$(Q)$(MAKE) -C common DESTDIR="../$(LIB_INSTALL)/" install $(P)
