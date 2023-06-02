@@ -47,6 +47,17 @@ cmd_env() {
 	eval $($XCLUSTER env)
 }
 
+##   perf_build
+##     Build the kernel "perf" tool
+cmd_perf_build() {
+	eval $($XCLUSTER env | grep -E '^KERNELDIR|__kver')
+	test -n "$KERNELDIR" || die 'Not set [$KERNELDIR]'
+	local kdir=$KERNELDIR/$__kver
+	test -d "$kdir" || die "Not a directory [$kdir]"
+	cd $kdir/tools/perf || die cd
+	make || die "Make perf"
+}
+
 ##
 ##   test --list
 ##   test [--xterm] [test...] > logfile

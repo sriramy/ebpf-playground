@@ -13,8 +13,10 @@ ifeq ($(VERBOSE),1)
 else
   Q = @
 endif
-ifeq ($(VERBOSE),0)
-P:= >/dev/null
+ifeq ($(VERBOSE),1)
+P = 
+else
+P = >/dev/null
 MAKEFLAGS += --no-print-directory
 endif
 
@@ -32,18 +34,16 @@ DATADIR?=$(PREFIX)/share
 MANDIR?=$(DATADIR)/man
 BPF_OBJECT_DIR ?=$(LIBDIR)/bpf
 
-CFLAGS ?= -O2 -g
-USER_CLFAGS ?= -O2 -g
+CFLAGS ?= -O2 -g -Werror -Wall
+USER_CLFAGS ?= -O2 -g -Werror -Wall
 BPF_CFLAGS ?= -Wno-visibility
 
 DEFINES := -DBPF_OBJECT_PATH=\"$(BPF_OBJECT_DIR)\"
 
 ifeq ($(DEBUG),1)
 DEFINES += -DDEBUG
-Q :=
 endif
 
-CFLAGS += $(DEFINES)
 USER_CFLAGS += $(DEFINES)
 BPF_CFLAGS += $(DEFINES)
 
@@ -58,7 +58,6 @@ OBJ := $(SRC:%.c=$(BUILD)/%.o)
 BPF_SRC := $(wildcard *_kern.c)
 BPF_OBJ := $(BPF_SRC:%.c=$(BUILD)/%.o)
 
-CFLAGS += -I$(LIB_INSTALL)/include -I${XDP_TOOLS}/headers
 LDLIBS += "-lelf -lz"
 USER_CFLAGS += -I$(LIB_INSTALL)/include
 USER_LDFLAGS := -L$(LIB_INSTALL)/lib -lrt -lcommon -lxdp -lbpf -lelf -lz
@@ -69,4 +68,11 @@ LIBBPF := $(LIB_INSTALL)/lib/libbpf.a
 LIBXDP := $(LIB_INSTALL)/lib/libxdp.a
 XDP_LOADER := $(LIB_INSTALL)/bin/xdp-loader
 COMMON := $(LIB_INSTALL)/lib/libcommon.a
-LIBBPF_CFLAGS := $(if $(CFLAGS),$(CFLAGS),-g -O2 -Werror -Wall) -fPIC
+
+# Detect source file changes
+LIBBPF_SOURCES := $(wildcard $(LIB_DIR)/libbpf/src/*.[ch])
+BPFTOOL_SOURCES := $(wildcard $(LIB_DIR)/bpftool/src/*.[ch])
+LIBXDP_SOURCES := $(wildcard $(LIB_DIR)/xdp-tools/lib/libxdp/libxdp*.[ch]) $(LIB_DIR)/xdp-tools/lib/libxdp/xsk.c
+XDP_LOADER_SOURCES := $(wildcard $(LIB_DIR)/xdp-tools/xdp-loader*.[ch]) 
+COMMON_SOURCES := $(wildcard $(LIB_DIR)/common/*.[ch])
+LIB_SOURCES:= $(LIBBPF_SOURCES) $(BPFTOOL_SOURCES) $(LIBXDP_SOURCES) $(XDP_LOADER_SOURCES) $(COMMON_SOURCES)

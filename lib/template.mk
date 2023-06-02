@@ -2,7 +2,10 @@
 ## Common targets needed to build an xdp application
 ##
 
-all: $(LIB_DIR) $(BUILD) $(BUILD)/$(X) $(BPF_OBJ)
+all: lib $(BUILD) $(BUILD)/$(X) $(BPF_OBJ)
+
+lib: $(LIB_SOURCES)
+	make -C $(LIB_DIR)
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -10,7 +13,7 @@ $(BUILD):
 $(BUILD)/%.o : %.c
 	$(CC) -c -Wall $(USER_CFLAGS) $< -o $@
 
-$(BUILD)/$(X): $(OBJ)
+$(BUILD)/$(X): $(OBJ) $(LIB_SOURCES)
 	$(CC) -o $(BUILD)/$(X) $(OBJ) $(USER_LDFLAGS)
 
 $(BPF_OBJ): $(BUILD)/%.o: %.c

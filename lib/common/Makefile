@@ -8,22 +8,25 @@ LIB_DIR = ..
 LIB_INSTALL := $(LIB_DIR)/install
 CFLAGS ?= -O2 -g -Werror -Wall -I$(LIB_INSTALL)/include
 
-COMMON_INCLUDE := $(wildcard *.h)
-COMMON_SOURCES := $(wildcard *.c)
-COMMON_OBJ := $(COMMON_SOURCES:%.c=%.o)
-COMMON_AR := libcommon.a
+ifeq ($(DEBUG),1)
+CFLAGS += -DDEBUG
+endif
 
-all: $(COMMON_AR)
+SOURCES := $(wildcard *.c)
+OBJ := $(SOURCES:%.c=%.o)
+X := libcommon.a
 
-$(COMMON_AR): $(COMMON_OBJ)
+all: $(X)
+
+$(X): $(OBJ)
 	$(AR) rcs $@ $^
 
 %.o: %.c
-	$(CC) -c -Wall $(CFLAGS) $< -o $@
+	$(CC) -c -Wall $(CFLAGS) $(EXTRA_CFLAGS) $< -o $@
 
 .PHONY: clean
 clean:
-	rm -f $(COMMON_OBJ) $(COMMON_AR)
+	rm -f $(OBJ) $(X)
 
 install: all
 	$(Q)install -m 0755 -d $(DESTDIR)/include/common $(P)

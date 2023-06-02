@@ -11,10 +11,10 @@
 #include <xdp/libxdp.h>
 #include <xdp/xsk.h>
 
-#define NUM_PORTS 10
+#define NUM_PORTS 16
 
 struct mempool_block {
-        uint64_t *blocks;
+        uint64_t *addr;
         bool used;
 };
 
@@ -33,8 +33,8 @@ struct mempool {
 	void *addr;
 	uint64_t *frames;
         uint64_t *frames_empty;
-        struct mempool_block *prod;
-        struct mempool_block *cons;
+        struct mempool_block *full;
+        struct mempool_block *empty;
 
 	struct xsk_ring_prod fq;
 	struct xsk_ring_cons cq;

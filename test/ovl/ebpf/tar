@@ -18,14 +18,25 @@ test -n "$1" || die "No out-file"
 mkdir -p $tmp
 cp -R $dir/default/* $tmp
 
+# install gdb
+$XCLUSTER install_prog --dest=$tmp gdb
+
+eval $($XCLUSTER env | grep -E '^KERNELDIR|__kver')
+kdir=$KERNELDIR/$__kver
+
+# install perf
+f=$kdir/tools/perf/perf
+test -x $f || die "Not executable [$f]"
+$XCLUSTER install_prog --dest=$tmp $f
+
 # install libbpf, bpftool, libxdp and local XDP progs
 log "Building local XDP programs"
 gittop=$(git rev-parse --show-toplevel)
 for x in lib xdp-sctp; do
 	log "  make $x"
-	make -C $gittop/$x > /dev/null
+	make -C $gittop/$x DEBUG=1 V=1
 	log "  make $x install"
-	DESTDIR=$tmp make -C $gittop/$x install > /dev/null
+	DESTDIR=$tmp make -C $gittop/$x install
 done
 
 cd $tmp

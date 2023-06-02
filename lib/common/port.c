@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
 #include <xdp/libxdp.h>
 #include <xdp/xsk.h>
@@ -23,7 +24,7 @@ static uint64_t port_frame_get(struct port* port, struct port_block *port_block)
 	uint64_t frame;
 
 	assert(frame_nr >= 0);
-	frame = port_block->mb->blocks[frame_nr];
+	frame = port_block->mb->addr[frame_nr];
 	port_block->frame_nr = frame_nr;
 
 	return frame;
@@ -37,7 +38,7 @@ static void port_frame_put(struct port *port, struct port_block *port_block, uin
 {
 	uint64_t frame_nr = port_block->frame_nr + 1;
 
-	port_block->mb->blocks[frame_nr] = frame;
+	port_block->mb->addr[frame_nr] = frame;
 	port_block->frame_nr = frame_nr;
 }
 

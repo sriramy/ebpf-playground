@@ -16,12 +16,9 @@ libxdp: bpftool $(LIBXDP)
 xdploader: libxdp $(XDP_LOADER)
 common: libxdp $(COMMON)
 
-# Detect submodule libbpf source file changes
-LIBBPF_SOURCES := $(wildcard libbpf/src/*.[ch])
-
 $(LIBBPF): $(LIBBPF_SOURCES)
-	@echo ; echo "  libbpf"
-	$(Q)$(MAKE) -C libbpf/src CFLAGS="$(LIBBPF_CFLAGS)" $(P)
+	@echo "  libbpf"
+	$(Q)$(MAKE) -C libbpf/src EXTRA_CFLAGS="-fPIC" $(P)
 	$(Q)$(MAKE) -C libbpf/src DESTDIR=../../$(LIB_INSTALL) PREFIX= install_headers $(P)
 	$(Q)cp -fp libbpf/src/libbpf.a $(LIB_INSTALL)/lib/ $(P)
 
@@ -30,10 +27,8 @@ libbpf_clean:
 	$(Q)$(MAKE) -C libbpf/src clean
 	$(Q)find $(LIB_INSTALL) -type f -name libbpf.a -delete
 
-# Detect submodule bpftool source file changes
-BPFTOOL_SOURCES := $(wildcard bpftool/src/*.[ch])
 $(BPFTOOL): $(BPFTOOL_SOURCES)
-	@echo ; echo "  bpftool"
+	@echo "  bpftool"
 	$(Q)$(MAKE) -C bpftool/src EXTRA_CFLAGS="--static" $(P)
 	$(Q)cp -fp bpftool/src/bpftool $(LIB_INSTALL)/sbin $(P)
 
@@ -42,11 +37,8 @@ bpftool_clean:
 	$(Q)$(MAKE) -C bpftool/src clean
 	$(Q)find $(LIB_INSTALL) -type f -name bpftool -delete
 
-# Detect submodule libxdp source file changes
-LIBXDP_SOURCES := $(wildcard xdp-tools/lib/libxdp/libxdp*.[ch]) xdp-tools/lib/libxdp/xsk.c
-
 $(LIBXDP): $(LIBXDP_SOURCES)
-	@echo ; echo "  libxdp"
+	@echo "  libxdp"
 	$(Q)$(MAKE) -C xdp-tools BUILD_STATIC_ONLY=1 BPFTOOL="../$(LIB_INSTALL)/sbin/bpftool" LIBBPF_DIR="../$(LIB_DIR)/libbpf" LIBBPF_INCLUDE_DIR="../$(LIB_INSTALL)/install/include" LIBBPF_UNBUILT=1 libxdp $(P)
 	$(Q)$(MAKE) -C xdp-tools DESTDIR=../../../$(LIB_INSTALL) PREFIX= BUILD_STATIC_ONLY=1 libxdp_install $(P)
 
@@ -55,10 +47,8 @@ libxdp_clean:
 	$(Q)$(MAKE) -C xdp-tools clean
 	$(Q)find $(LIB_INSTALL) -type f -name libxdp.a -delete
 
-# Detect submodule xdp-loader source file changes
-XDP_LOADER_SOURCES := $(wildcard xdp-tools/xdp-loader*.[ch]) 
 $(XDP_LOADER): $(XDP_LOADER_SOURCES)
-	@echo ; echo "  xdp-loader"
+	@echo "  xdp-loader"
 	$(Q)$(MAKE) -C xdp-tools BUILD_STATIC_ONLY=1 BPFTOOL="../../../$(LIB_INSTALL)/sbin/bpftool" xdp-loader $(P)
 	$(Q)cp -fp xdp-tools/xdp-loader/xdp-loader $(LIB_INSTALL)/bin/ $(P)
 
@@ -66,12 +56,10 @@ $(XDP_LOADER): $(XDP_LOADER_SOURCES)
 xdploader_clean:
 	$(Q)find $(LIB_INSTALL) -type f -name xdp-loader -delete
 
-# Detect common source file changes
-COMMON_SOURCES := $(wildcard common/*.[ch]) 
 
 $(COMMON): $(COMMON_SOURCES)
-	@echo ; echo "  common"
-	$(Q)$(MAKE) -C common CFLAGS="-I../$(LIB_INSTALL)/include" $(P)
+	@echo "  common"
+	$(Q)$(MAKE) -C common DEBUG=1 EXTRA_CFLAGS="-I../$(LIB_INSTALL)/include" $(P)
 	$(Q)$(MAKE) -C common DESTDIR="../$(LIB_INSTALL)/" install $(P)
 
 .PHONY: common_clean

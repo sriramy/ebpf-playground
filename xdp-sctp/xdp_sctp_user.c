@@ -35,18 +35,16 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 		prog, ifindex, XDP_MODE_NATIVE);
 	if (!xdp_prog)
 		die("ERROR: xdp program not loaded: %s\n", strerror(errno));
-	D(printf("xdp_prog_load success\n"));
 
 	struct mempool *mp = mempool_create(&mempool_params_default, &umem_config_default);
 	if (!mp)
 		die("ERROR: Memory pool NOT created: %s\n", strerror(errno));
-	D(printf("mempool_create success\n"));
 
 	struct port_params pparms = {
 		.xsk_config.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
 		.xsk_config.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
 		.xsk_config.libxdp_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD,
-		.xsk_config.bind_flags = 0,
+		.xsk_config.bind_flags = XDP_USE_NEED_WAKEUP,
 		.mp = mp,
 		.queue = q
 	};
@@ -55,7 +53,6 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 	struct port *p = port_create(&pparms);
 	if (!p)
 		die("ERROR: Port NOT created: %s\n", strerror(errno));
-	D(printf("port_create success\n"));
 
 	struct pkt_burst rx_burst;
 	memset(&rx_burst, 0, sizeof(rx_burst));
