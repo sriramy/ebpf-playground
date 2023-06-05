@@ -13,6 +13,7 @@
 #include <xdp/libxdp.h>
 #include <xdp/xsk.h>
 
+#include "log.h"
 #include "port.h"
 
 static bool port_frame_can_get(struct port* port, struct port_block *port_block) {
@@ -98,7 +99,7 @@ void port_delete(struct port *p)
 	free(p);
 }
 
-void port_rx_burst_prep(struct port *p, uint32_t nb_pkts)
+void port_fq_setup(struct port *p, uint32_t nb_pkts)
 {
 	uint32_t pos;
 
@@ -129,7 +130,6 @@ void port_rx_burst_prep(struct port *p, uint32_t nb_pkts)
 	}
 
 	xsk_ring_prod__submit(&p->fq, nb_pkts);
-
 }
 
 void port_rx_burst(struct port *p, struct pkt_burst *b)
@@ -160,23 +160,9 @@ void port_rx_burst(struct port *p, struct pkt_burst *b)
 	b->nb_pkts = nb_pkts;
 
 	xsk_ring_cons__release(&p->rxq, nb_pkts);
-	port_rx_burst_prep(p, nb_pkts);
 }
 
-void port_rx_burst_done(struct port *p, struct pkt_burst *b)
-{
-	for (int i = 0; i < b->nb_pkts; i++) {
-		if (!port_frame_can_put(p, &p->cons)) {
-			mempool_cons_block_put(p->params.mp, p->cons.mb);
-			p->cons.mb = mempool_cons_block_get(p->params.mp);
-			p->cons.frame_nr = p->params.mp->params.frames_per_block;
-		}
-		port_frame_put(p, &p->cons, b->addr[i]);
-	}
-
-}
-
-void port_tx_burst_prep(struct port *p, uint32_t nb_pkts)
+void port_cq_setup(struct port *p, uint32_t nb_pkts)
 {
 	uint32_t pos;
 	nb_pkts = xsk_ring_cons__peek(&p->cq, nb_pkts, &pos);
@@ -184,9 +170,9 @@ void port_tx_burst_prep(struct port *p, uint32_t nb_pkts)
 	for (int i = 0; i < nb_pkts; i++) {
 		uint64_t addr = *xsk_ring_cons__comp_addr(&p->cq, pos + i);
 		if (!port_frame_can_put(p, &p->prod)) {
+			mempool_prod_block_put(p->params.mp, p->prod.mb);
 			p->prod.mb = mempool_prod_block_get(p->params.mp);
 			p->prod.frame_nr = p->params.mp->params.frames_per_block;
-
 		}
 		port_frame_put(p, &p->prod, addr);
 	}
@@ -199,7 +185,6 @@ void port_tx_burst(struct port *p, struct pkt_burst *b)
 	uint32_t nb_pkts, pos;
 	int status;
 
-	port_tx_burst_prep(p, p->params.mp->comp_size);
 	nb_pkts = b->nb_pkts;
 
 	for ( ; ; ) {
@@ -222,16 +207,4 @@ void port_tx_burst(struct port *p, struct pkt_burst *b)
 	xsk_ring_prod__submit(&p->txq, nb_pkts);
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
 		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
-}
-
-void port_tx_burst_done(struct port *p, struct pkt_burst *b)
-{
-	for (int i = 0; i < b->nb_pkts; i++) {
-		if (!port_frame_can_put(p, &p->prod)) {
-			mempool_cons_block_put(p->params.mp, p->prod.mb);
-			p->prod.mb = mempool_cons_block_get(p->params.mp);
-			p->prod.frame_nr = p->params.mp->params.frames_per_block;
-		}
-		port_frame_put(p, &p->prod, b->addr[i]);
-	}
 }

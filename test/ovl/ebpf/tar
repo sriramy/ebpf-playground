@@ -34,9 +34,9 @@ log "Building local XDP programs"
 gittop=$(git rev-parse --show-toplevel)
 for x in lib xdp-sctp; do
 	log "  make $x"
-	make -C $gittop/$x DEBUG=1 V=1
+	make -C $gittop/$x DEBUG=1 > /dev/null
 	log "  make $x install"
-	DESTDIR=$tmp make -C $gittop/$x install
+	DESTDIR=$tmp make -C $gittop/$x install > /dev/null
 done
 
 cd $tmp

@@ -54,13 +54,27 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 	if (!p)
 		die("ERROR: Port NOT created: %s\n", strerror(errno));
 
+	xdp_map_update(xdp_prog, "xdp_sctp_xsks", p->xsk);
+
 	struct pkt_burst rx_burst;
-	memset(&rx_burst, 0, sizeof(rx_burst));
+	uint32_t nb_pkts = mp->fill_size;
 
 	for (;;) {
-		port_rx_burst_prep(p, mp->fill_size);
+		if (nb_pkts) {
+			port_fq_setup(p, nb_pkts);
+			memset(&rx_burst, 0, sizeof(rx_burst));
+		}
+
 		port_rx_burst(p, &rx_burst);
-		for (int i = 0; i < rx_burst.nb_pkts; i++) {
+		nb_pkts = rx_burst.nb_pkts;
+		Dx(printf("%d packets received\n", nb_pkts));
+
+		if (!nb_pkts) {
+			usleep(100 * 1000);
+			continue;
+		}
+
+		for (int i = 0; i < nb_pkts; i++) {
 			uint64_t addr = rx_burst.addr[i];
 			uint32_t len = rx_burst.len[i];
 
@@ -77,7 +91,6 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 				len, ntohs(h->h_proto));
 			D(printf("UMEM fq; %u\n", xsk_prod_nb_free(&mp->fq, 0)));
 		}
-		port_rx_burst_done(p, &rx_burst);
 	}
 	
 	return EXIT_SUCCESS;

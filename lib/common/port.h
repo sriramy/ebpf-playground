@@ -34,7 +34,7 @@ struct port_stats {
 };
 
 struct port_block {
-	uint64_t frame_nr;
+	uint32_t frame_nr;
 	struct mempool_block *mb;
 };
 
@@ -63,12 +63,10 @@ struct pkt_burst {
 struct port *port_create(struct port_params *params);
 void port_delete(struct port *p);
 
-void port_rx_burst_prep(struct port *p, uint32_t nb_pkts);
+void port_fq_setup(struct port *p, uint32_t nb_pkts);
 void port_rx_burst(struct port *p, struct pkt_burst *b);
-void port_rx_burst_done(struct port *p, struct pkt_burst *b);
 
-void port_tx_burst_prep(struct port *p, uint32_t nb_pkts);
+void port_cq_setup(struct port *p, uint32_t nb_pkts);
 void port_tx_burst(struct port *p, struct pkt_burst *b);
-void port_tx_burst_done(struct port *p, struct pkt_burst *b);
 
 #endif /* __COMMON_PORT_H__ */

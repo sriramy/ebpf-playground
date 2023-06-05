@@ -47,6 +47,7 @@ void xdp_map_update(struct xdp_program *xdp_prog, char const *xsk_map, struct xs
 	struct bpf_object *bpf_obj = xdp_program__bpf_obj(xdp_prog);
 	if (bpf_obj == NULL)
 		die("ERROR: bpf object not found: %s\n", strerror(errno));
+
 	struct bpf_map *map = bpf_object__find_map_by_name(bpf_obj, xsk_map);
 	int xsks_map_fd = bpf_map__fd(map);
 	if (xsks_map_fd < 0)

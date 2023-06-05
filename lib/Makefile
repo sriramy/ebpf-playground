@@ -59,7 +59,7 @@ xdploader_clean:
 
 $(COMMON): $(COMMON_SOURCES)
 	@echo "  common"
-	$(Q)$(MAKE) -C common DEBUG=1 EXTRA_CFLAGS="-I../$(LIB_INSTALL)/include" $(P)
+	$(Q)$(MAKE) -C common EXTRA_CFLAGS="-I../$(LIB_INSTALL)/include" $(P)
 	$(Q)$(MAKE) -C common DESTDIR="../$(LIB_INSTALL)/" install $(P)
 
 .PHONY: common_clean

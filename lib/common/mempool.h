@@ -11,7 +11,7 @@
 #include <xdp/libxdp.h>
 #include <xdp/xsk.h>
 
-#define NUM_PORTS 16
+#define NUM_PORTS 4
 
 struct mempool_block {
         uint64_t *addr;
@@ -43,7 +43,7 @@ struct mempool {
 
 static const struct mempool_params mempool_params_default = {
         .block_nr = NUM_PORTS * 2,
-        .frames_per_block = XSK_RING_PROD__DEFAULT_NUM_DESCS,
+        .frames_per_block = XSK_RING_PROD__DEFAULT_NUM_DESCS * 4,
         .frame_sz = XSK_UMEM__DEFAULT_FRAME_SIZE,
 };
 

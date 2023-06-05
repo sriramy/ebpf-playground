@@ -42,9 +42,8 @@ static __always_inline int handle_ipv4(struct xdp_md *xdp)
 		return XDP_PASS;
 	}
 
-	unsigned int rx_queue = xdp->rx_queue_index;
-	int rc = bpf_redirect_map(&xdp_sctp_xsks, rx_queue, XDP_PASS);
-	Dx("SCTP XDP redirect, len=%ld, rc=%d\n", (data_end - data), rc);
+	int rc = bpf_redirect_map(&xdp_sctp_xsks, xdp->rx_queue_index, XDP_PASS);
+	Dx("SCTP XDP redirect (v4), len=%ld, rc=%d\n", (data_end - data), rc);
 	return rc;
 }
 
@@ -64,9 +63,8 @@ static __always_inline int handle_ipv6(struct xdp_md *xdp)
 		return XDP_PASS;
 	}
 
-	unsigned int rx_queue = xdp->rx_queue_index;
-	int rc = bpf_redirect_map(&xdp_sctp_xsks, rx_queue, XDP_PASS);
-	Dx("SCTP XDP redirect, len=%ld, rc=%d\n", (data_end - data), rc);
+	int rc = bpf_redirect_map(&xdp_sctp_xsks, xdp->rx_queue_index, XDP_PASS);
+	Dx("SCTP XDP redirect (v6), len=%ld, rc=%d\n", (data_end - data), rc);
 	return rc;
 }
 
@@ -76,15 +74,12 @@ int _xdp_sctp_redirect(struct xdp_md *xdp)
 	void *data_end = (void *)(long)xdp->data_end;
 	void *data = (void *)(long)xdp->data;
 	struct ethhdr *eth = data;
-	__u16 h_proto;
 
 	if (eth + 1 > data_end)
 		return XDP_DROP;
 
-	h_proto = eth->h_proto;
-
 	int rc = XDP_PASS;
-	switch(h_proto) {
+	switch(bpf_ntohs(eth->h_proto)) {
 	case ETH_P_IP:
 		rc = handle_ipv4(xdp);
 		break;
