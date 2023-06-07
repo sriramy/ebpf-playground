@@ -67,10 +67,9 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 
 		port_rx_burst(p, &rx_burst);
 		nb_pkts = rx_burst.nb_pkts;
-		Dx(printf("%d packets received\n", nb_pkts));
 
 		if (!nb_pkts) {
-			usleep(100 * 1000);
+			usleep(10 * 1000);
 			continue;
 		}
 
@@ -87,8 +86,8 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 			Dx(printf(" addr=%lu, pkt=%p, buffer=%p (%p)\n",
 				addr, pkt, mp->addr, mp->addr + addr));
 			struct ethhdr* h = (struct ethhdr*)pkt;
-			printf("Received packet; len=%d, proto 0x%04x\n",
-				len, ntohs(h->h_proto));
+			D(printf("Received packet; len=%d, proto 0x%04x\n",
+				len, ntohs(h->h_proto)));
 			D(printf("UMEM fq; %u\n", xsk_prod_nb_free(&mp->fq, 0)));
 		}
 	}

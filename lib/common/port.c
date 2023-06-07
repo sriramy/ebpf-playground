@@ -147,8 +147,6 @@ void port_rx_burst(struct port *p, struct pkt_burst *b)
 
 			poll(&pollfd, 1, 0);
 		}
-		b->nb_pkts = 0;
-		return;
 	}
 
 	for (int i = 0; i < nb_pkts; i++) {

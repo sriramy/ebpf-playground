@@ -18,8 +18,10 @@ test -n "$1" || die "No out-file"
 mkdir -p $tmp
 cp -R $dir/default/* $tmp
 
-# install gdb
-$XCLUSTER install_prog --dest=$tmp gdb
+# install gdbserver
+f=gdbserver
+log "Including $f"
+$XCLUSTER install_prog --dest=$tmp $f
 
 eval $($XCLUSTER env | grep -E '^KERNELDIR|__kver')
 kdir=$KERNELDIR/$__kver
@@ -27,6 +29,7 @@ kdir=$KERNELDIR/$__kver
 # install perf
 f=$kdir/tools/perf/perf
 test -x $f || die "Not executable [$f]"
+log "Including $f"
 $XCLUSTER install_prog --dest=$tmp $f
 
 # install libbpf, bpftool, libxdp and local XDP progs
