@@ -7,3 +7,6 @@
 [submodule "xdp-tools"]
 	path = lib/xdp-tools
 	url = https://github.com/xdp-project/xdp-tools
+[submodule "xdp-sctp/usrsctp"]
+	path = xdp-sctp/usrsctp
+	url = https://github.com/Nordix/usrsctp.git

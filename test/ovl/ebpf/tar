@@ -35,7 +35,7 @@ $XCLUSTER install_prog --dest=$tmp $f
 # install libbpf, bpftool, libxdp and local XDP progs
 log "Building local XDP programs"
 gittop=$(git rev-parse --show-toplevel)
-for x in lib xdp-sctp; do
+for x in lib xdp-udp-reflector xdp-sctp; do
 	log "  make $x"
 	make -C $gittop/$x DEBUG=1 > /dev/null
 	log "  make $x install"

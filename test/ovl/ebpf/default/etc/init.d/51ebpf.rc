@@ -4,7 +4,7 @@
 . /usr/lib/network-topology.sh
 
 vm() {
-        xdp_run.sh xdp-sctp eth1
+        xdp_run.sh xdp-udp-reflector eth1
 }
 
 router() {
