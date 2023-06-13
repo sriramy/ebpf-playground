@@ -61,7 +61,7 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 
 	for (;;) {
 		if (nb_pkts) {
-			port_fq_setup(p, nb_pkts);
+			port_fq_push(p, nb_pkts);
 			memset(&rx_burst, 0, sizeof(rx_burst));
 		}
 

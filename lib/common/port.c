@@ -70,7 +70,7 @@ struct port *port_create(struct port_params *params)
 
 	p->prod.mb = mempool_prod_block_get(params->mp);
 	p->cons.mb = mempool_cons_block_get(params->mp);
-	p->prod.frame_nr = params->mp->params.frames_per_block;
+	p->prod.frame_nr = 0;
 	p->cons.frame_nr = params->mp->params.frames_per_block;
 
 	return p;
@@ -99,7 +99,7 @@ void port_delete(struct port *p)
 	free(p);
 }
 
-void port_fq_setup(struct port *p, uint32_t nb_pkts)
+void port_fq_push(struct port *p, uint32_t nb_pkts)
 {
 	uint32_t pos;
 
@@ -160,7 +160,7 @@ void port_rx_burst(struct port *p, struct pkt_burst *b)
 	xsk_ring_cons__release(&p->rxq, nb_pkts);
 }
 
-void port_cq_setup(struct port *p, uint32_t nb_pkts)
+void port_cq_pull(struct port *p, uint32_t nb_pkts)
 {
 	uint32_t pos;
 	nb_pkts = xsk_ring_cons__peek(&p->cq, nb_pkts, &pos);
@@ -205,4 +205,12 @@ void port_tx_burst(struct port *p, struct pkt_burst *b)
 	xsk_ring_prod__submit(&p->txq, nb_pkts);
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
 		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+}
+
+void port_stats_print(struct port *p, FILE *file)
+{
+	fprintf(file, "rx_pkts\t\trx_bytes\trx_dropped\ttx_pkts\t\ttx_bytes\ttx_dropped\t\n");
+	fprintf(file, "%-12lu\t%-12lu\t%-12lu\t%-12lu\t%-12lu\t%-12lu\t\n",
+		p->stats.rx_pkts, p->stats.rx_bytes, p->stats.rx_dropped,
+		p->stats.tx_pkts, p->stats.tx_bytes, p->stats.tx_dropped);
 }

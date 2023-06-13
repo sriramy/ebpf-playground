@@ -32,8 +32,10 @@ $(BPF_OBJ): $(BUILD)/%.o: %.c
 install:
 	install -d $(DESTDIR)$(PREFIX)/bin
 	install -m 755 $(BUILD)/$(X) $(DESTDIR)$(PREFIX)/bin
+ifneq ("$(wildcard $(BPF_OBJ))","")
 	install -d $(DESTDIR)$(PREFIX)/lib/bpf
 	install -m 644 $(BPF_OBJ) $(DESTDIR)$(PREFIX)/lib/bpf
+endif
 
 .PHONY: clean
 clean:

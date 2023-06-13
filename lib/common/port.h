@@ -63,10 +63,12 @@ struct pkt_burst {
 struct port *port_create(struct port_params *params);
 void port_delete(struct port *p);
 
-void port_fq_setup(struct port *p, uint32_t nb_pkts);
+void port_fq_push(struct port *p, uint32_t nb_pkts);
 void port_rx_burst(struct port *p, struct pkt_burst *b);
 
-void port_cq_setup(struct port *p, uint32_t nb_pkts);
+void port_cq_pull(struct port *p, uint32_t nb_pkts);
 void port_tx_burst(struct port *p, struct pkt_burst *b);
+
+void port_stats_print(struct port *p, FILE *file);
 
 #endif /* __COMMON_PORT_H__ */

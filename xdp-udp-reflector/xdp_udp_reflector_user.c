@@ -17,6 +17,7 @@
 #include <linux/ip.h>
 #include <linux/udp.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 #include <xdp/libxdp.h>
 #include <xdp/xsk.h>
@@ -26,11 +27,36 @@
 #include "common/port.h"
 #include "common/prog.h"
 
+uint16_t checksum (uint16_t *addr, int len)
+{
+	int count = len;
+	register uint32_t csum = 0;
+
+	// Sum up 2-byte values until none or only one byte left.
+	while (count > 1) {
+		csum += *(addr++);
+		count -= 2;
+	}
+
+	// Add left-over byte, if any.
+	if (count > 0)
+		csum += *(uint8_t *) addr;
+
+	// Fold 32-bit sum into 16 bits; we lose information by doing this,
+	// increasing the chances of a collision.
+	// sum = (lower 16 bits) + (upper 16 bits shifted right 16 bits)
+	while (csum >> 16)
+		csum = (csum & 0xffff) + (csum >> 16);
+
+	// Checksum is one's compliment of sum.
+	return ~csum;
+}
+
 static void udp_reflector(void *data)
 {
 	struct ethhdr *eth = (struct ethhdr *)data;
-	struct iphdr *ip = (struct iphdr *)((void*)eth + sizeof(eth));
-	struct udphdr *udp = (struct udphdr *)((void*)ip + sizeof(ip));
+	struct iphdr *ip = (struct iphdr *)((void*)eth + sizeof(*eth));
+	struct udphdr *udp = (struct udphdr *)((void*)ip + sizeof(*ip));
 
 	unsigned char tmp_mac[ETH_ALEN];
 	uint32_t tmp_ip;
@@ -45,15 +71,22 @@ static void udp_reflector(void *data)
 	tmp_ip = ip->saddr;
 	ip->saddr = ip->daddr;
 	ip->daddr = tmp_ip;
-	ip->ttl = 0xFF;
+
+	/* Update IP options */
+	ip->ttl = 64;
+	ip->check = 0;
+	ip->check = checksum((uint16_t*)ip, sizeof(*ip));
 
 	/* SWAP UDP port */
 	tmp_port = udp->source;
 	udp->source = udp->dest;
 	udp->dest = tmp_port;
+
+	/* Update UDP options */
+	udp->check = 0;
 }
 
-static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
+int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 {
 	unsigned int ifindex = if_nametoindex(dev);
 	if (ifindex == 0)
@@ -90,12 +123,20 @@ static int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 	memset(&rx_burst, 0, sizeof(rx_burst));
 	memset(&tx_burst, 0, sizeof(tx_burst));
 
+	uint8_t stats_interval = 10; // 10 seconds
+	time_t last = time(NULL);
+
 	for (;;) {
 		if (nb_pkts) {
-			port_fq_setup(p, nb_pkts);
-			port_cq_setup(p, nb_pkts);
+			port_cq_pull(p, MAX_PKT_BURST);
+			port_fq_push(p, nb_pkts);
 			memset(&rx_burst, 0, sizeof(rx_burst));
 			memset(&tx_burst, 0, sizeof(tx_burst));
+
+			if ((time(NULL) - last) > (stats_interval - 1)) {
+				port_stats_print(p, stderr);
+				last = clock();
+			}
 		}
 
 		port_rx_burst(p, &rx_burst);
@@ -138,7 +179,7 @@ static struct option long_options[] = {
 	{NULL, 0, NULL, 0}
 };
 
-void print_usage()
+static void print_usage()
 {
 	printf("Usage: \n");
 	for(int i = 0; i < sizeof(long_options)/sizeof(struct option) - 1; i++) {
@@ -183,7 +224,7 @@ int main(int argc, char **argv)
 		print_usage();
 		die("--dev is a required argument\n");
 	} else if (prog == NULL) {
-		prog = strdup("/usr/local/lib/bpf/xdp_sctp_kern.o");
+		prog = strdup("/usr/local/lib/bpf/xdp_udp_reflector_kern.o");
 		printf("No program provided, using default BPF prog: %s!!!\n", prog);
 	}
 

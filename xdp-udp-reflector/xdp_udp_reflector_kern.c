@@ -7,16 +7,6 @@
 #include <netinet/in.h>
 #include <bpf/bpf_endian.h>
 
-#if DEBUG
-#define Dx(fmt, ...)                                      \
-    ({                                                         \
-        char ____fmt[] = fmt;                                  \
-        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
-    })
-#else
-#define Dx(fmt, ...)
-#endif
-
 // Socket map for redirect to user-space
 struct {
 	__uint(type, BPF_MAP_TYPE_XSKMAP);
@@ -42,9 +32,7 @@ static __always_inline int handle_ipv4(struct xdp_md *xdp)
 		return XDP_PASS;
 	}
 
-	int rc = bpf_redirect_map(&xdp_udp_xsks, xdp->rx_queue_index, XDP_PASS);
-	Dx("UDP XDP redirect (v4), len=%ld, rc=%d\n", (data_end - data), rc);
-	return rc;
+	return bpf_redirect_map(&xdp_udp_xsks, xdp->rx_queue_index, XDP_PASS);
 }
 
 static __always_inline int handle_ipv6(struct xdp_md *xdp)
@@ -63,9 +51,7 @@ static __always_inline int handle_ipv6(struct xdp_md *xdp)
 		return XDP_PASS;
 	}
 
-	int rc = bpf_redirect_map(&xdp_udp_xsks, xdp->rx_queue_index, XDP_PASS);
-	Dx("UDP XDP redirect (v6), len=%ld, rc=%d\n", (data_end - data), rc);
-	return rc;
+	return bpf_redirect_map(&xdp_udp_xsks, xdp->rx_queue_index, XDP_PASS);
 }
 
 SEC("xdp.frags")

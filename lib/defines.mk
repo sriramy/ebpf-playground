@@ -41,7 +41,7 @@ BPF_CFLAGS ?= -Wno-visibility
 DEFINES := -DBPF_OBJECT_PATH=\"$(BPF_OBJECT_DIR)\"
 
 ifeq ($(DEBUG),1)
-DEFINES += -DDEBUG
+DEFINES += -ggdb -DDEBUG
 endif
 
 USER_CFLAGS += $(DEFINES)

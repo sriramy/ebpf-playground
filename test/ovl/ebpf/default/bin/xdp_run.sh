@@ -17,5 +17,5 @@ test -n $dev || die "No device provided!"
 xdp-loader unload $dev --all
 cmd="$prog --dev=$dev"
 log=/var/log/$prog-$dev.log
-nohup $cmd &> $log &
+nohup $cmd > $log &
 xdp-loader status $dev
