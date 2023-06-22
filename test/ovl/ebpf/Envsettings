@@ -1,9 +1,12 @@
 XC_PATH="${XC_PATH:-$HOME/xc/xcluster}"
 GIT_TOP=$(git rev-parse --show-toplevel)
+test -n "$QEMUDIR" || QEMUDIR=$GOPATH/src/github.com/qemu/qemu
 
 cd $XC_PATH
-export __kvm="qemu-system-x86_64"
+export __kvm="$QEMUDIR/build/qemu-system-x86_64 -enable-kvm"
+export __kvm_opt='-M q35 -object rng-random,filename=/dev/urandom,id=rng0 -device virtio-rng-pci,rng=rng0,max-bytes=1024,period=80000 -cpu qemu64,+sse4.2,+sse4.1,+ssse3'
+
 . ./Envsettings
 export XCLUSTER_OVLPATH=$XC_PATH/ovl:$GIT_TOP/test/ovl
-export __net_setup=$PWD/net-setup.sh
+export __net_setup=$GIT_TOP/test/ovl/ebpf/net-setup.sh
 cd -
