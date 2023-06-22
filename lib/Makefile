@@ -3,7 +3,7 @@ LIB_INSTALL := $(LIB_DIR)/install
 
 include defines.mk
 
-all: libbpf bpftool libxdp xdploader libdpdk common
+all: libbpf bpftool libxdp xdploader common
 
 .PHONY: clean
 clean: libbpf_clean bpftool_clean libxdp_clean xdploader_clean common_clean
@@ -14,7 +14,6 @@ libbpf: $(LIBBPF)
 bpftool: libbpf $(BPFTOOL)
 libxdp: bpftool $(LIBXDP)
 xdploader: libxdp $(XDP_LOADER)
-libdpdk: $(LIBDPDK)
 common: libxdp $(COMMON)
 
 $(LIBBPF): $(LIBBPF_SOURCES)
@@ -57,7 +56,18 @@ $(XDP_LOADER): $(XDP_LOADER_SOURCES)
 xdploader_clean:
 	$(Q)find $(LIB_INSTALL) -type f -name xdp-loader -delete
 
-$(LIBDPDK): $(LIBDPDK_SOURCES)
+$(COMMON): $(COMMON_SOURCES)
+	@echo "  common"
+	$(Q)$(MAKE) -C common EXTRA_CFLAGS="-I../$(LIB_INSTALL)/include" $(P)
+	$(Q)$(MAKE) -C common DESTDIR="../$(LIB_INSTALL)/" install $(P)
+
+.PHONY: common_clean
+common_clean:
+	$(Q)$(MAKE) -C common clean $(P)
+	$(Q)find $(LIB_INSTALL) -type f -name libcommon.a -delete
+
+.PHONY: libdpdk
+libdpdk: $(LIBDPDK_SOURCES)
 	@echo "  libdpdk"
 	$(Q)meson setup --prefix=$(abspath $(LIB_INSTALL)) dpdk/build dpdk $(P)
 	$(Q)meson configure -Dmax_lcores=4 -Dexamples=all dpdk/build $(P)
@@ -73,16 +83,6 @@ libdpdk_clean:
 	$(Q)rm -f install/include/cmdline* $(P)
 	$(Q)find $(LIB_INSTALL) -type f -name dpdk-* -delete
 	$(Q)find $(LIB_INSTALL) -type f -name librte* -delete
-
-$(COMMON): $(COMMON_SOURCES)
-	@echo "  common"
-	$(Q)$(MAKE) -C common EXTRA_CFLAGS="-I../$(LIB_INSTALL)/include" $(P)
-	$(Q)$(MAKE) -C common DESTDIR="../$(LIB_INSTALL)/" install $(P)
-
-.PHONY: common_clean
-common_clean:
-	$(Q)$(MAKE) -C common clean $(P)
-	$(Q)find $(LIB_INSTALL) -type f -name libcommon.a -delete
 
 install: all
 	$(Q)install -m 0755 -d $(DESTDIR)$(HDRDIR)/bpf $(P)
