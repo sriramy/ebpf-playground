@@ -60,19 +60,21 @@ BPF_OBJ := $(BPF_SRC:%.c=$(BUILD)/%.o)
 
 LDLIBS += "-lelf -lz"
 USER_CFLAGS += -I$(LIB_INSTALL)/include
-USER_LDFLAGS := -L$(LIB_INSTALL)/lib -lrt -lcommon -lxdp -lbpf -lelf -lz
+USER_LDFLAGS += -L$(LIB_INSTALL)/lib -lrt -lcommon -lxdp -lbpf -lelf -lz
 BPF_CFLAGS += -I$(LIB_INSTALL)/include
 
 BPFTOOL := $(LIB_INSTALL)/sbin/bpftool
 LIBBPF := $(LIB_INSTALL)/lib/libbpf.a
 LIBXDP := $(LIB_INSTALL)/lib/libxdp.a
 XDP_LOADER := $(LIB_INSTALL)/bin/xdp-loader
+LIBDPDK := $(LIB_INSTALL)/lib/libdpdk.a
 COMMON := $(LIB_INSTALL)/lib/libcommon.a
 
 # Detect source file changes
 LIBBPF_SOURCES := $(wildcard $(LIB_DIR)/libbpf/src/*.[ch])
 BPFTOOL_SOURCES := $(wildcard $(LIB_DIR)/bpftool/src/*.[ch])
 LIBXDP_SOURCES := $(wildcard $(LIB_DIR)/xdp-tools/lib/libxdp/libxdp*.[ch]) $(LIB_DIR)/xdp-tools/lib/libxdp/xsk.c
-XDP_LOADER_SOURCES := $(wildcard $(LIB_DIR)/xdp-tools/xdp-loader*.[ch]) 
+XDP_LOADER_SOURCES := $(wildcard $(LIB_DIR)/xdp-tools/xdp-loader*.[ch])
+LIBDPDK_SOURCES = $(wildcard $(LIB_DIR)/dpdk/*/*.[ch])
 COMMON_SOURCES := $(wildcard $(LIB_DIR)/common/*.[ch])
 LIB_SOURCES:= $(LIBBPF_SOURCES) $(BPFTOOL_SOURCES) $(LIBXDP_SOURCES) $(XDP_LOADER_SOURCES) $(COMMON_SOURCES)

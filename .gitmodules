@@ -10,3 +10,6 @@
 [submodule "xdp-sctp/usrsctp"]
 	path = xdp-sctp/usrsctp
 	url = https://github.com/Nordix/usrsctp.git
+[submodule "lib/dpdk"]
+	path = lib/dpdk
+	url = git://dpdk.org/dpdk

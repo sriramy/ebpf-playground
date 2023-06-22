@@ -3,7 +3,7 @@ LIB_INSTALL := $(LIB_DIR)/install
 
 include defines.mk
 
-all: libbpf bpftool libxdp xdploader common
+all: libbpf bpftool libxdp xdploader libdpdk common
 
 .PHONY: clean
 clean: libbpf_clean bpftool_clean libxdp_clean xdploader_clean common_clean
@@ -14,6 +14,7 @@ libbpf: $(LIBBPF)
 bpftool: libbpf $(BPFTOOL)
 libxdp: bpftool $(LIBXDP)
 xdploader: libxdp $(XDP_LOADER)
+libdpdk: $(LIBDPDK)
 common: libxdp $(COMMON)
 
 $(LIBBPF): $(LIBBPF_SOURCES)
@@ -56,6 +57,22 @@ $(XDP_LOADER): $(XDP_LOADER_SOURCES)
 xdploader_clean:
 	$(Q)find $(LIB_INSTALL) -type f -name xdp-loader -delete
 
+$(LIBDPDK): $(LIBDPDK_SOURCES)
+	@echo "  libdpdk"
+	$(Q)meson setup --prefix=$(abspath $(LIB_INSTALL)) dpdk/build dpdk $(P)
+	$(Q)meson configure -Dmax_lcores=4 -Dexamples=all dpdk/build $(P)
+	$(Q)meson compile -C dpdk/build $(P)
+	$(Q)meson install -C dpdk/build $(P)
+
+.PHONY: libdpdk_clean
+libdpdk_clean:
+	$(Q)ninja -C dpdk/build -t clean $(P)
+	$(Q)rm -rf install/lib/x86_64-linux-gnu/ $(P)
+	$(Q)rm -rf install/include/generic/ $(P)
+	$(Q)rm -f install/include/rte* $(P)
+	$(Q)rm -f install/include/cmdline* $(P)
+	$(Q)find $(LIB_INSTALL) -type f -name dpdk-* -delete
+	$(Q)find $(LIB_INSTALL) -type f -name librte* -delete
 
 $(COMMON): $(COMMON_SOURCES)
 	@echo "  common"

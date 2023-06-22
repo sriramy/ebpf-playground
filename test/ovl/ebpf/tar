@@ -32,8 +32,8 @@ test -x $f || die "Not executable [$f]"
 log "Including $f"
 $XCLUSTER install_prog --dest=$tmp $f
 
-# install libbpf, bpftool, libxdp and local XDP progs
-log "Building local XDP programs"
+# install libbpf, bpftool, libxdp and local progs
+log "Building local programs"
 gittop=$(git rev-parse --show-toplevel)
 for x in lib udp-client xdp-udp-reflector xdp-sctp; do
 	log "  make $x"
