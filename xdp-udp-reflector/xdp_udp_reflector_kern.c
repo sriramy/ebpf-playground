@@ -16,6 +16,16 @@ struct {
 	__uint(pinning, LIBBPF_PIN_BY_NAME);
 } xdp_udp_xsks SEC(".maps");
 
+#ifdef DEBUG
+#define DEBUG_PRINTK(fmt, ...)                                      \
+    ({                                                         \
+        char ____fmt[] = fmt;                                  \
+        bpf_trace_printk(____fmt, sizeof(____fmt), ##__VA_ARGS__); \
+    })
+#else
+#define DEBUG_PRINTK(fmt, ...)
+#endif
+
 static __always_inline int handle_ipv4(struct xdp_md *xdp)
 {
 	void *data_end = (void *)(long)xdp->data_end;
@@ -76,6 +86,8 @@ int _xdp_udp_redirect(struct xdp_md *xdp)
 		break;
 	}
 
+	DEBUG_PRINTK("_xdp_udp_redirect len=%ld, queue=%d, rc=%d",
+		(data_end - data), xdp->rx_queue_index, rc);
 	return rc;
 }
 

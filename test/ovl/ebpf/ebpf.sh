@@ -98,7 +98,7 @@ test_start_empty() {
 	test -n "$__nrouters" || __nrouters=1
 	export xcluster_PATH="/usr/local/bin:/sbin:/usr/sbin:/bin:/usr/bin"
 	# Default mem=128 doesn't seem to be enough to run with CONFIG_DEBUG_INFO_BTF=y
-	export __mem=512
+	export __mem=768
 	xcluster_start network-topology iptools iperf .
 }
 

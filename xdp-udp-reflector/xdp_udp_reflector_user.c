@@ -105,7 +105,7 @@ int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 		.xsk_config.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
 		.xsk_config.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
 		.xsk_config.libxdp_flags = XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD,
-		.xsk_config.bind_flags = XDP_USE_NEED_WAKEUP,
+		.xsk_config.bind_flags = XDP_ZEROCOPY | XDP_USE_NEED_WAKEUP,
 		.mp = mp,
 		.queue = q
 	};

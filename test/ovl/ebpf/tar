@@ -30,7 +30,7 @@ kdir=$KERNELDIR/$__kver
 f=$kdir/tools/perf/perf
 test -x $f || die "Not executable [$f]"
 log "Including $f"
-$XCLUSTER install_prog --dest=$tmp $f || die "perf not built, run perf_build first!!!"
+$XCLUSTER install_prog --dest=$tmp $f
 
 # install libbpf, bpftool, libxdp and local progs
 log "Building local programs"
