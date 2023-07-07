@@ -32,10 +32,21 @@ test -x $f || die "Not executable [$f]"
 log "Including $f"
 $XCLUSTER install_prog --dest=$tmp $f
 
+# # install selftests
+# f=$kdir/tools/testing/selftests
+# test -x $f/kselftest_install.sh || die "Not executable [$f]"
+# log "Including $f"
+# mkdir -p $tmp/selftests
+# cd $f
+# $f/kselftest_install.sh $tmp/selftests 2>&1 > /dev/null
+# cd -
+
 # install libbpf, bpftool, libxdp and local progs
 log "Building local programs"
 gittop=$(git rev-parse --show-toplevel)
 for x in lib udp-client xdp-udp-reflector xdp-sctp; do
+	test -z $EBPF_PLAYGROUND_CLEAN || log "  make $x clean"
+	test -z $EBPF_PLAYGROUND_CLEAN || make -C $gittop/$x DEBUG=1 clean > /dev/null
 	log "  make $x"
 	make -C $gittop/$x DEBUG=1 > /dev/null
 	log "  make $x install"
