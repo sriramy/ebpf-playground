@@ -39,6 +39,7 @@ int udp_client(char const *dst_addr, int port)
 {
 	struct timespec start, end;
 	int sockfd;
+	unsigned int serverlen;
 	struct sockaddr_in server;
 
 	printf("Build Data...\n");
@@ -60,12 +61,21 @@ int udp_client(char const *dst_addr, int port)
 	printf("Send UDP data...\n");
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
+	serverlen = sizeof(server);
 	if (sendto(sockfd, &buffer[0], sizeof(buffer), 0,
-			(const struct sockaddr*)&server, sizeof(server)) < 0)
+		(const struct sockaddr*)&server, serverlen) < 0)
 	{
 		fprintf(stderr, "Error in sendto()\n");
 		return EXIT_FAILURE;
 	}
+
+	if (recvfrom(sockfd, buffer, sizeof(buffer), 0,
+		(struct sockaddr*)&server, &serverlen) < 0)
+	{
+		fprintf(stderr, "Error in recvfrom()\n");
+
+	}
+	printf("Echo from server: %s", buffer);
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 	uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 +
