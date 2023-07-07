@@ -38,7 +38,6 @@ void build(uint8_t* buffer, size_t length)
 }
 
 void intHandler(int dummy) {
-	fprintf(stderr, "Ctrl+C> exit");
 	stop = 1;
 }
 
@@ -76,34 +75,29 @@ int udp_client(char const *dst_addr, int port, int nb_pkts)
 
 	fprintf(stderr, "UDP PING (%s) %ld bytes of data.\n", dst_addr, sizeof(buffer));
 	serverlen = sizeof(server);
-	i = 1;
-	while (!stop) {
+	for (i = 1; !stop && (nb_pkts != 0); i++) {
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
 		bytes = sendto(sockfd, &buffer[0], sizeof(buffer), 0,
 			(const struct sockaddr*)&server, serverlen);
-		if (bytes < 0) {
-			fprintf(stderr, "To %s: udp_seq=%d destination host unreachable.\n", dst_addr, i);
-			continue;
+		if (bytes >= 0) {
+			bytes = recvfrom(sockfd, buffer, sizeof(buffer), 0,
+				(struct sockaddr*)&server, &serverlen);
+			if (bytes >= 0) {
+				clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+				delta_ms = (end.tv_sec - start.tv_sec) * 1e3f +
+					(end.tv_nsec - start.tv_nsec) / 1e6f;
+
+				fprintf(stderr, "%ld bytes from %s: udp_seq=%d time=%ld ms\n",
+					bytes, dst_addr, i, delta_ms);
+			}
 		}
 
-		bytes = recvfrom(sockfd, buffer, sizeof(buffer), 0,
-			(struct sockaddr*)&server, &serverlen);
-		if (bytes < 0) {
+		if (bytes < 0)
 			fprintf(stderr, "From %s: udp_seq=%d destination host unreachable.\n", dst_addr, i);
-			continue;
-		}
-		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-		delta_ms = (end.tv_sec - start.tv_sec) * 1e3f +
-			(end.tv_nsec - start.tv_nsec) / 1e6f;
 
-		fprintf(stderr, "%ld bytes from %s: udp_seq=%d time=%ld ms\n",
-			bytes, dst_addr, i, delta_ms);
-
-		nb_pkts = (nb_pkts > 0) ? (nb_pkts - 1) : nb_pkts;
-		if (!nb_pkts)
-			break;
-
-		i++;
+		if (nb_pkts > 0)
+			nb_pkts--;
 	}
 
 	return EXIT_SUCCESS;
