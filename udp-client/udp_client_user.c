@@ -4,6 +4,7 @@
 */
 
 #include <getopt.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -24,32 +25,47 @@
 #define DEFAULT_PORT (5001)
 uint8_t buffer[64];
 
+static volatile int stop = 0;
+
 /**
  * Populate the buffer with random data.
  */
 void build(uint8_t* buffer, size_t length)
 {
-    for (size_t i = 0; i < length; i++)
-    {
+    for (size_t i = 0; i < length; i++) {
         buffer[i] = (rand() % 255) + 1;
     }
 }
 
-int udp_client(char const *dst_addr, int port)
+void intHandler(int dummy) {
+	fprintf(stderr, "Ctrl+C> exit");
+	stop = 1;
+}
+
+int udp_client(char const *dst_addr, int port, int nb_pkts)
 {
+	struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
 	struct timespec start, end;
-	int sockfd;
-	unsigned int serverlen;
 	struct sockaddr_in server;
+	unsigned int serverlen;
+	uint64_t delta_ms;
+	ssize_t bytes;
+	int sockfd, i;
 
-	printf("Build Data...\n");
+	signal(SIGINT, intHandler);
+
 	build(buffer, sizeof(buffer));
-
-	printf("Configure socket...\n");
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sockfd < 0)
-	{
-		fprintf(stderr, "Error opening socket");
+	if (sockfd < 0) {
+		perror("socket failed");
+		return EXIT_FAILURE;
+	}
+	if (setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt (SO_SNDTIMEO) failed");
+		return EXIT_FAILURE;
+	}
+	if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+		perror("setsockopt (SO_RCVTIMEO) failed");
 		return EXIT_FAILURE;
 	}
 
@@ -58,31 +74,37 @@ int udp_client(char const *dst_addr, int port)
 	server.sin_addr.s_addr = inet_addr(dst_addr);
 	server.sin_port = htons(port);
 
-	printf("Send UDP data...\n");
-	clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-
+	fprintf(stderr, "UDP PING (%s) %ld bytes of data.\n", dst_addr, sizeof(buffer));
 	serverlen = sizeof(server);
-	if (sendto(sockfd, &buffer[0], sizeof(buffer), 0,
-		(const struct sockaddr*)&server, serverlen) < 0)
-	{
-		fprintf(stderr, "Error in sendto()\n");
-		return EXIT_FAILURE;
+	i = 1;
+	while (!stop) {
+		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+		bytes = sendto(sockfd, &buffer[0], sizeof(buffer), 0,
+			(const struct sockaddr*)&server, serverlen);
+		if (bytes < 0) {
+			fprintf(stderr, "To %s: udp_seq=%d destination host unreachable.\n", dst_addr, i);
+			continue;
+		}
+
+		bytes = recvfrom(sockfd, buffer, sizeof(buffer), 0,
+			(struct sockaddr*)&server, &serverlen);
+		if (bytes < 0) {
+			fprintf(stderr, "From %s: udp_seq=%d destination host unreachable.\n", dst_addr, i);
+			continue;
+		}
+		clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+		delta_ms = (end.tv_sec - start.tv_sec) * 1e3f +
+			(end.tv_nsec - start.tv_nsec) / 1e6f;
+
+		fprintf(stderr, "%ld bytes from %s: udp_seq=%d time=%ld ms\n",
+			bytes, dst_addr, i, delta_ms);
+
+		nb_pkts = (nb_pkts > 0) ? (nb_pkts - 1) : nb_pkts;
+		if (!nb_pkts)
+			break;
+
+		i++;
 	}
-
-	if (recvfrom(sockfd, buffer, sizeof(buffer), 0,
-		(struct sockaddr*)&server, &serverlen) < 0)
-	{
-		fprintf(stderr, "Error in recvfrom()\n");
-
-	}
-	printf("Echo from server: %s", buffer);
-
-	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1000000 +
-		(end.tv_nsec - start.tv_nsec) / 1000;
-
-	printf("Time to send UDP message: %f[s]\n", delta_us / 1e6f);
-	printf("Finished...\n");
 
 	return EXIT_SUCCESS;
 }
@@ -91,6 +113,7 @@ static struct option long_options[] = {
 	{"help", no_argument, NULL, 'h'},
 	{"dst", required_argument, NULL, 'd'},
 	{"port", required_argument, NULL, 'p'},
+	{"count", required_argument, NULL, 'c'},
 	{NULL, 0, NULL, 0}
 };
 
@@ -110,8 +133,9 @@ int main(int argc, char **argv)
 	char ch;
 	char const *dst_addr = NULL;
 	int dst_port = DEFAULT_PORT;
+	int count = -1;
 
-	while ((ch = getopt_long(argc, argv, "hd:p:", long_options, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "hd:p:c:", long_options, NULL)) != -1) {
 		switch (ch)
 		{
 		case 'h':
@@ -122,6 +146,10 @@ int main(int argc, char **argv)
 			break;
 		case 'p':
 			dst_port = atoi(optarg);
+			break;
+		case 'c':
+			count = atoi(optarg);
+			break;
 		default:
 			break;
 		}
@@ -134,5 +162,5 @@ int main(int argc, char **argv)
 
 	argc -= optind;
 	argv += optind;
-	return udp_client(dst_addr, dst_port);
+	return udp_client(dst_addr, dst_port, count);
 }
