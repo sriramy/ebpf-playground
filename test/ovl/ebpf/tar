@@ -44,14 +44,12 @@ $XCLUSTER install_prog --dest=$tmp $f
 # install libbpf, bpftool, libxdp and local progs
 log "Building local programs"
 gittop=$(git rev-parse --show-toplevel)
-for x in lib udp-client xdp-udp-reflector xdp-sctp; do
-	test -z $EBPF_PLAYGROUND_CLEAN || log "  make $x clean"
-	test -z $EBPF_PLAYGROUND_CLEAN || make -C $gittop/$x DEBUG=1 clean > /dev/null
-	log "  make $x"
-	make -C $gittop/$x DEBUG=1 > /dev/null
-	log "  make $x install"
-	DESTDIR=$tmp make -C $gittop/$x install > /dev/null
-done
+test -z $EBPF_PLAYGROUND_CLEAN || log "  make clean"
+test -z $EBPF_PLAYGROUND_CLEAN || make -C $gittop DEBUG=1 clean > /dev/null
+log "  make"
+make -C $gittop DEBUG=1 > /dev/null
+log "  make install"
+DESTDIR=$tmp make -C $gittop install > /dev/null
 
 cd $tmp
 tar cf "$1" *
