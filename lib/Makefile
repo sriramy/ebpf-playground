@@ -3,10 +3,10 @@ LIB_INSTALL := $(LIB_DIR)/install
 
 include defines.mk
 
-all: libbpf bpftool libxdp xdploader common
+all: libbpf bpftool libxdp xdploader xdpbench common
 
 .PHONY: clean
-clean: libbpf_clean bpftool_clean libxdp_clean xdploader_clean common_clean
+clean: libbpf_clean bpftool_clean libxdp_clean xdploader_clean xdpbench_clean common_clean
 	$(Q)find $(LIB_INSTALL) -type f -not -name .gitignore -delete
 	$(Q)find $(LIB_INSTALL) -type d -empty -delete
 
@@ -14,6 +14,7 @@ libbpf: $(LIBBPF)
 bpftool: libbpf $(BPFTOOL)
 libxdp: bpftool $(LIBXDP)
 xdploader: libxdp $(XDP_LOADER)
+xdpbench: libxdp $(XDP_BENCH)
 common: libxdp $(COMMON)
 
 $(LIBBPF): $(LIBBPF_SOURCES)
@@ -55,6 +56,15 @@ $(XDP_LOADER): $(XDP_LOADER_SOURCES)
 .PHONY: xdploader_clean
 xdploader_clean:
 	$(Q)find $(LIB_INSTALL) -type f -name xdp-loader -delete
+
+$(XDP_BENCH): $(XDP_BENCH_SOURCES)
+	@echo "  xdp-bench"
+	$(Q)$(MAKE) -C xdp-tools BUILD_STATIC_ONLY=1 BPFTOOL="../../$(LIB_INSTALL)/sbin/bpftool" xdp-bench $(P)
+	$(Q)cp -fp xdp-tools/xdp-bench/xdp-bench $(LIB_INSTALL)/bin/ $(P)
+
+.PHONY: xdpbench_clean
+xdpbench_clean:
+	$(Q)find $(LIB_INSTALL) -type f -name xdp-bench -delete
 
 $(COMMON): $(COMMON_SOURCES)
 	@echo "  common"

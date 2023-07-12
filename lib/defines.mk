@@ -67,13 +67,15 @@ BPFTOOL := $(LIB_INSTALL)/sbin/bpftool
 LIBBPF := $(LIB_INSTALL)/lib/libbpf.a
 LIBXDP := $(LIB_INSTALL)/lib/libxdp.a
 XDP_LOADER := $(LIB_INSTALL)/bin/xdp-loader
+XDP_BENCH := $(LIB_INSTALL)/bin/xdp-bench
 COMMON := $(LIB_INSTALL)/lib/libcommon.a
 
 # Detect source file changes
 LIBBPF_SOURCES := $(wildcard $(LIB_DIR)/libbpf/src/*.[ch])
 BPFTOOL_SOURCES := $(wildcard $(LIB_DIR)/bpftool/src/*.[ch])
 LIBXDP_SOURCES := $(wildcard $(LIB_DIR)/xdp-tools/lib/libxdp/libxdp*.[ch]) $(LIB_DIR)/xdp-tools/lib/libxdp/xsk.c
-XDP_LOADER_SOURCES := $(wildcard $(LIB_DIR)/xdp-tools/xdp-loader*.[ch])
+XDP_LOADER_SOURCES := $(wildcard $(LIB_DIR)/xdp-tools/xdp-loader/*.[ch])
+XDP_BENCH_SOURCES := $(wildcard $(LIB_DIR)/xdp-tools/xdp-bench/*.[ch])
 LIBDPDK_SOURCES := $(wildcard $(LIB_DIR)/dpdk/drivers/*) $(wildcard $(LIB_DIR)/dpdk/lib/*)
 COMMON_SOURCES := $(wildcard $(LIB_DIR)/common/*.[ch])
-LIB_SOURCES:= $(LIBBPF_SOURCES) $(BPFTOOL_SOURCES) $(LIBXDP_SOURCES) $(XDP_LOADER_SOURCES) $(COMMON_SOURCES)
+LIB_SOURCES:= $(LIBBPF_SOURCES) $(BPFTOOL_SOURCES) $(LIBXDP_SOURCES) $(XDP_LOADER_SOURCES) $(XDP_BENCH_SOURCES) $(COMMON_SOURCES)
