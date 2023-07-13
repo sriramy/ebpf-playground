@@ -135,7 +135,7 @@ int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 
 			if ((time(NULL) - last) > (stats_interval - 1)) {
 				port_stats_print(p, stderr);
-				last = clock();
+				last = time(NULL);
 			}
 		}
 

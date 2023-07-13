@@ -94,12 +94,15 @@ test_start_empty() {
 	echo "$XOVLS" | grep -q private-reg && unset XOVLS
 	test -n "$TOPOLOGY" && \
 		. $($XCLUSTER ovld network-topology)/$TOPOLOGY/Envsettings
-	test -n "$__nvm" || __nvm=2
+	test -n "$__nvm" || __nvm=1
 	test -n "$__nrouters" || __nrouters=1
 	test -n "$__ntesters" || __ntesters=1
 	export xcluster_PATH="/usr/local/bin:/sbin:/usr/sbin:/bin:/usr/bin"
 	# Default mem=128 doesn't seem to be enough to run with CONFIG_DEBUG_INFO_BTF=y
 	export __mem=768
+	export __smp1=4
+	export __append1="isolcpus=2,3 nohz_full=2,3"
+	# export __append="panic=-1"
 	xcluster_start network-topology iptools iperf .
 }
 

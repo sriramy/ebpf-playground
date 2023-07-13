@@ -4,14 +4,17 @@
 . /usr/lib/network-topology.sh
 
 vm() {
-        xdp_run.sh xdp-udp-reflector eth1
+        ethtool -L eth1 combined 1
 }
 
 router() {
-        return 0
+        ethtool -L eth1 combined 1
+        ethtool -L eth2 combined 1
+        nohup xdp-sock -H 00:00:00:01:01:c9 -G 00:00:00:01:01:01 -t -i eth1 -s 64 &
 }
 
 tester() {
+        nohup xdp-sock -H 00:00:00:01:02:dd -G 00:00:00:01:01:01 -t -i eth1 -s 64 &
         return 0
 }
 
