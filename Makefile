@@ -1,5 +1,5 @@
 SUBDIRS := lib
-SUBDIRS += xdp-sctp xdp-udp-reflector udp-client
+SUBDIRS += xdp-sctp xdp-sock xdp-udp-reflector udp-client
 
 TOPTARGETS := all install clean
 
