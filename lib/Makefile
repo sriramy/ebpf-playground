@@ -3,10 +3,10 @@ LIB_INSTALL := $(LIB_DIR)/install
 
 include defines.mk
 
-all: libbpf bpftool libxdp xdploader xdpbench common
+all: libbpf bpftool libxdp xdploader xdpbench xdptrafficgen common
 
 .PHONY: clean
-clean: libbpf_clean bpftool_clean libxdp_clean xdploader_clean xdpbench_clean common_clean
+clean: libbpf_clean bpftool_clean libxdp_clean xdploader_clean xdpbench_clean xdptrafficgen_clean common_clean
 	$(Q)find $(LIB_INSTALL) -type f -not -name .gitignore -delete
 	$(Q)find $(LIB_INSTALL) -type d -empty -delete
 
@@ -15,6 +15,7 @@ bpftool: libbpf $(BPFTOOL)
 libxdp: bpftool $(LIBXDP)
 xdploader: libxdp $(XDP_LOADER)
 xdpbench: libxdp $(XDP_BENCH)
+xdptrafficgen: libxdp $(XDP_TRAFFICGEN)
 common: libxdp $(COMMON)
 
 $(LIBBPF): $(LIBBPF_SOURCES)
@@ -65,6 +66,15 @@ $(XDP_BENCH): $(XDP_BENCH_SOURCES)
 .PHONY: xdpbench_clean
 xdpbench_clean:
 	$(Q)find $(LIB_INSTALL) -type f -name xdp-bench -delete
+
+$(XDP_TRAFFICGEN): $(XDP_TRAFFICGEN_SOURCES)
+	@echo "  xdp-trafficgen"
+	$(Q)$(MAKE) -C xdp-tools BUILD_STATIC_ONLY=1 BPFTOOL="../../$(LIB_INSTALL)/sbin/bpftool" xdp-trafficgen $(P)
+	$(Q)cp -fp xdp-tools/xdp-trafficgen/xdp-trafficgen $(LIB_INSTALL)/bin/ $(P)
+
+.PHONY: xdptrafficgen_clean
+xdptrafficgen_clean:
+	$(Q)find $(LIB_INSTALL) -type f -name xdp-trafficgen -delete
 
 $(COMMON): $(COMMON_SOURCES)
 	@echo "  common"
