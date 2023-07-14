@@ -88,7 +88,7 @@ void mempool_delete(struct mempool *mp)
 	free(mp);
 }
 
-struct mempool_block *mempool_prod_block_get(struct mempool *mp)
+struct mempool_block *mempool_empty_block_get(struct mempool *mp)
 {
 	struct mempool_block *block = NULL;
 	for (uint32_t i = 0; i < mp->params.block_nr; i++) {
@@ -102,13 +102,14 @@ struct mempool_block *mempool_prod_block_get(struct mempool *mp)
 	return block;
 }
 
-bool mempool_prod_block_put(struct mempool *mp, struct mempool_block *put_block)
+bool mempool_empty_block_put(struct mempool *mp, struct mempool_block *put_block)
 {
 	struct mempool_block *block = NULL;
 	for (uint32_t i = 0; i < mp->params.block_nr; i++) {
 		block = &mp->empty[i];
-		if (block == put_block) {
+		if (block->used) {
 			block->used = false;
+			block = put_block;
 			return true;
 		}
 	}
@@ -116,7 +117,7 @@ bool mempool_prod_block_put(struct mempool *mp, struct mempool_block *put_block)
 	return false;
 }
 
-struct mempool_block *mempool_cons_block_get(struct mempool *mp)
+struct mempool_block *mempool_full_block_get(struct mempool *mp)
 {
 	struct mempool_block *block = NULL;
 	for (uint32_t i = 0; i < mp->params.block_nr; i++) {
@@ -130,16 +131,34 @@ struct mempool_block *mempool_cons_block_get(struct mempool *mp)
 	return block;
 }
 
-bool mempool_cons_block_put(struct mempool *mp, struct mempool_block *put_block)
+bool mempool_full_block_put(struct mempool *mp, struct mempool_block *put_block)
 {
 	struct mempool_block *block = NULL;
 	for (uint32_t i = 0; i < mp->params.block_nr; i++) {
 		block = &mp->full[i];
-		if (block == put_block) {
+		if (block->used) {
 			block->used = false;
+			block = put_block;
 			return true;
 		}
 	}
 
 	return false;
+}
+
+void mempool_stats_print(struct mempool *mp, FILE *file)
+{
+	struct mempool_block *block = NULL;
+	uint64_t frame_nr = mp->params.frames_per_block;
+
+	fprintf(file, "Empty blocks\n");
+	for (uint32_t i = 0; i < mp->params.block_nr; i++) {
+		block = &mp->empty[i];
+		fprintf(file, "Block [%d:%p]: frames: %ld, used: %s\n", i, block, frame_nr, block->used ? "Y": "N");
+	}
+	fprintf(file, "Full blocks\n");
+	for (uint32_t i = 0; i < mp->params.block_nr; i++) {
+		block = &mp->full[i];
+		fprintf(file, "Block [%d:%p]: frames: %ld, used: %s\n", i, block, frame_nr, block->used ? "Y": "N");
+	}
 }

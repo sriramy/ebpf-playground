@@ -60,9 +60,11 @@ struct mempool *mempool_create(
 	const struct xsk_umem_config *umem_config);
 void mempool_delete(struct mempool *mp);
 
-struct mempool_block *mempool_prod_block_get(struct mempool *mp);
-bool mempool_prod_block_put(struct mempool *mp, struct mempool_block *put_block);
-struct mempool_block *mempool_cons_block_get(struct mempool *mp);
-bool mempool_cons_block_put(struct mempool *mp, struct mempool_block *put_block);
+struct mempool_block *mempool_empty_block_get(struct mempool *mp);
+bool mempool_empty_block_put(struct mempool *mp, struct mempool_block *put_block);
+struct mempool_block *mempool_full_block_get(struct mempool *mp);
+bool mempool_full_block_put(struct mempool *mp, struct mempool_block *put_block);
+
+void mempool_stats_print(struct mempool *mp, FILE *file);
 
 #endif /* __COMMON_MEMPOOL_H__ */

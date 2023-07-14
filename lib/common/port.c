@@ -21,14 +21,7 @@ static bool port_frame_can_get(struct port* port, struct port_block *port_block)
 }
 
 static uint64_t port_frame_get(struct port* port, struct port_block *port_block) {
-	uint64_t frame_nr = port_block->frame_nr - 1;
-	uint64_t frame;
-
-	assert(frame_nr >= 0);
-	frame = port_block->mb->addr[frame_nr];
-	port_block->frame_nr = frame_nr;
-
-	return frame;
+	return port_block->mb->addr[port_block->frame_nr--];
 }
 
 static bool port_frame_can_put(struct port* port, struct port_block *port_block) {
@@ -37,10 +30,7 @@ static bool port_frame_can_put(struct port* port, struct port_block *port_block)
 
 static void port_frame_put(struct port *port, struct port_block *port_block, uint64_t frame)
 {
-	uint64_t frame_nr = port_block->frame_nr + 1;
-
-	port_block->mb->addr[frame_nr] = frame;
-	port_block->frame_nr = frame_nr;
+	port_block->mb->addr[port_block->frame_nr++] = frame;
 }
 
 struct port *port_create(struct port_params *params)
@@ -68,21 +58,15 @@ struct port *port_create(struct port_params *params)
 		goto err;
 	}
 
-	p->prod.mb = mempool_prod_block_get(params->mp);
-	p->cons.mb = mempool_cons_block_get(params->mp);
-	p->prod.frame_nr = 0;
-	p->cons.frame_nr = params->mp->params.frames_per_block;
+	p->prod.mb = mempool_full_block_get(params->mp);
+	p->cons.mb = mempool_empty_block_get(params->mp);
+	p->prod.frame_nr = params->mp->params.frames_per_block;
+	p->cons.frame_nr = 0;
 
 	return p;
 
 err:
-	if (p->xsk) {
-		mempool_cons_block_put(p->params.mp, p->cons.mb);
-		mempool_prod_block_put(p->params.mp, p->prod.mb);
-		xsk_socket__delete(p->xsk);
-	}
-	if (p)
-		free(p);
+	port_delete(p);
 	return NULL;
 }
 
@@ -91,11 +75,8 @@ void port_delete(struct port *p)
 {
 	if (!p)
 		return;
-	if (p->xsk) {
-		mempool_cons_block_put(p->params.mp, p->cons.mb);
-		mempool_prod_block_put(p->params.mp, p->prod.mb);
+	if (p->xsk)
 		xsk_socket__delete(p->xsk);
-	}
 	free(p);
 }
 
@@ -121,12 +102,13 @@ void port_fq_push(struct port *p, uint32_t nb_pkts)
 	}
 
 	for (int i = 0; i < nb_pkts; i++) {
-		if (!port_frame_can_get(p, &p->cons)) {
-			p->cons.mb = mempool_cons_block_get(p->params.mp);
-			p->cons.frame_nr = p->params.mp->params.frames_per_block;
+		if (!port_frame_can_get(p, &p->prod)) {
+			mempool_empty_block_put(p->params.mp, p->prod.mb);
+			p->prod.mb = mempool_full_block_get(p->params.mp);
+			p->prod.frame_nr = p->params.mp->params.frames_per_block;
 		}
 		*xsk_ring_prod__fill_addr(&p->fq, pos + i) = 
-			port_frame_get(p, &p->cons);
+			port_frame_get(p, &p->prod);
 	}
 
 	xsk_ring_prod__submit(&p->fq, nb_pkts);
@@ -134,9 +116,8 @@ void port_fq_push(struct port *p, uint32_t nb_pkts)
 
 void port_rx_burst(struct port *p, struct pkt_burst *b)
 {
-	uint32_t nb_pkts, pos;
+	uint32_t pos, nb_pkts = MAX_PKT_BURST;
 
-	nb_pkts = (p->cons.frame_nr > MAX_PKT_BURST) ? MAX_PKT_BURST : p->cons.frame_nr;
 	nb_pkts = xsk_ring_cons__peek(&p->rxq, nb_pkts, &pos);
 	if (!nb_pkts) {
 		if (xsk_ring_prod__needs_wakeup(&p->fq)) {
@@ -167,12 +148,12 @@ void port_cq_pull(struct port *p, uint32_t nb_pkts)
 
 	for (int i = 0; i < nb_pkts; i++) {
 		uint64_t addr = *xsk_ring_cons__comp_addr(&p->cq, pos + i);
-		if (!port_frame_can_put(p, &p->prod)) {
-			mempool_prod_block_put(p->params.mp, p->prod.mb);
-			p->prod.mb = mempool_prod_block_get(p->params.mp);
-			p->prod.frame_nr = p->params.mp->params.frames_per_block;
+		if (!port_frame_can_put(p, &p->cons)) {
+			mempool_full_block_put(p->params.mp, p->cons.mb);
+			p->cons.mb = mempool_empty_block_get(p->params.mp);
+			p->cons.frame_nr = 0;
 		}
-		port_frame_put(p, &p->prod, addr);
+		port_frame_put(p, &p->cons, addr);
 	}
 
 	xsk_ring_cons__release(&p->cq, nb_pkts);
@@ -205,6 +186,29 @@ void port_tx_burst(struct port *p, struct pkt_burst *b)
 	xsk_ring_prod__submit(&p->txq, nb_pkts);
 	if (xsk_ring_prod__needs_wakeup(&p->txq))
 		sendto(xsk_socket__fd(p->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
+}
+
+void port_block_stats_print(struct port *p, FILE *file)
+{
+	struct port_block *block = &p->prod;
+	int frames_per_line = 32;
+
+	fprintf(file, "Producer: %p, frames: %d\n", block->mb, block->frame_nr);
+	for (uint32_t i = 0; i < block->frame_nr; i++) {
+		fprintf(file, "[%ld] ", block->mb->addr[i]);
+		if (i % frames_per_line == (frames_per_line - 1))
+			fprintf(file, "\n");
+	}
+	fprintf(file, "\n");
+
+	block = &p->cons;
+	fprintf(file, "Consumer: %p, frames: %d\n", block->mb, block->frame_nr);
+	for (uint32_t i = 0; i < block->frame_nr; i++) {
+		fprintf(file, "[%ld] ", block->mb->addr[i]);
+		if (i % frames_per_line == (frames_per_line - 1))
+			fprintf(file, "\n");
+	}
+	fprintf(file, "\n");
 }
 
 void port_stats_print(struct port *p, FILE *file)

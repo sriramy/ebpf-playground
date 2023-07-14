@@ -69,6 +69,7 @@ void port_rx_burst(struct port *p, struct pkt_burst *b);
 void port_cq_pull(struct port *p, uint32_t nb_pkts);
 void port_tx_burst(struct port *p, struct pkt_burst *b);
 
+void port_block_stats_print(struct port *p, FILE *file);
 void port_stats_print(struct port *p, FILE *file);
 
 #endif /* __COMMON_PORT_H__ */
