@@ -1,6 +1,10 @@
 XC_PATH="${XC_PATH:-$HOME/xc/xcluster}"
 GIT_TOP=$(git rev-parse --show-toplevel)
-test -n "$QEMUDIR" || QEMUDIR=$GOPATH/src/github.com/qemu/qemu
+QEMUDIR="${QEMUDIR:-$GOPATH/src/github.com/qemu/qemu}"
+
+# export KERNELDIR=/home/sriramy/code/linux
+# export __kver=next-queue
+# export __kcfg=$XC_PATH/config/linux-6.4
 
 cd $XC_PATH
 export __kvm="$QEMUDIR/build/qemu-system-x86_64 -enable-kvm"

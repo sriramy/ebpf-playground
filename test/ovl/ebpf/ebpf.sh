@@ -47,6 +47,28 @@ cmd_env() {
 	eval $($XCLUSTER env)
 }
 
+##   kernel_build
+##     Build local kernel
+cmd_kernel_build() {
+	cmd_env
+	XC_PATH=$(dirname $XCLUSTER); XC_PATH=$(readlink -f $XC_PATH)
+	test -n "$__tmp" || export __tmp=$tmp
+
+	test "$__kbin" = "$XCLUSTER_HOME/bzImage" && __kbin="$__kbin-$__kver"
+	mkdir -p $__kobj
+	$XCLUSTER cpio_list $XC_PATH/image/initfs > $__kobj/cpio_list
+	$DISKIM kernel_build --kdir=$KERNELDIR/$__kver --kernel=$__kbin \
+		--kver=$__kver --kobj=$__kobj --kcfg=$__kcfg \
+		--menuconfig=$__menuconfig \
+		|| die "Kernel build failed [$__kver]"
+	if grep -q cpio_list $__kcfg; then
+		$XCLUSTER emit_cpio_list > $__kobj/cpio_list
+		$DISKIM kernel_build --kdir=$KERNELDIR/$__kver --kernel=$__kbin \
+			--kver=$__kver --kobj=$__kobj --kcfg=$__kcfg \
+			|| die "Kernel build failed [$__kver]"
+	fi
+}
+
 ##   perf_build
 ##     Build the kernel "perf" tool
 cmd_perf_build() {
