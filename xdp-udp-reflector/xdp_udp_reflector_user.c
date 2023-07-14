@@ -8,7 +8,9 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <signal.h>
 #include <poll.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <xdp/libxdp.h>
 #include <xdp/xsk.h>
@@ -27,7 +29,35 @@
 #include "common/port.h"
 #include "common/prog.h"
 
-uint16_t checksum (uint16_t *addr, int len)
+static volatile int stop = 0;
+uint8_t stats_interval = 10;
+
+void intHandler(int dummy) {
+	stop = 1;
+}
+
+static void *poller(void *arg)
+{
+	struct port *p = arg;
+	while (!stop) {
+		sleep(stats_interval);
+		mempool_stats_print(p->params.mp, stderr);
+		port_block_stats_print(p, stderr);
+		port_stats_print(p, stderr);
+	}
+
+	return NULL;
+}
+
+static void cleanup(struct port *p, struct mempool *mp,
+		    struct xdp_program *xdp_prog, unsigned int ifindex)
+{
+	port_delete(p);
+	mempool_delete(mp);
+	xdp_prog_unload(xdp_prog, ifindex, XDP_MODE_NATIVE);
+}
+
+static uint16_t checksum (uint16_t *addr, int len)
 {
 	int count = len;
 	register uint32_t csum = 0;
@@ -88,6 +118,11 @@ static void udp_reflector(void *data)
 
 int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 {
+	int err;
+	pthread_t poller_thread;
+
+	signal(SIGINT, intHandler);
+
 	unsigned int ifindex = if_nametoindex(dev);
 	if (ifindex == 0)
 		die("Unknown interface [%s]\n", dev);
@@ -123,20 +158,16 @@ int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 	memset(&rx_burst, 0, sizeof(rx_burst));
 	memset(&tx_burst, 0, sizeof(tx_burst));
 
-	uint8_t stats_interval = 10; // 10 seconds
-	time_t last = time(NULL);
+	err = pthread_create(&poller_thread, NULL, poller, p);
+	if (err)
+		die("ERROR: Cannot create stats poller: %s\n", strerror(errno));
 
-	for (;;) {
+	while (!stop) {
 		if (nb_pkts) {
 			port_cq_pull(p, MAX_PKT_BURST);
 			port_fq_push(p, nb_pkts);
 			memset(&rx_burst, 0, sizeof(rx_burst));
 			memset(&tx_burst, 0, sizeof(tx_burst));
-
-			if ((time(NULL) - last) > (stats_interval - 1)) {
-				port_stats_print(p, stderr);
-				last = time(NULL);
-			}
 		}
 
 		port_rx_burst(p, &rx_burst);
@@ -166,6 +197,9 @@ int start_rx(char const *dev, char const *prog, int q, unsigned nfq)
 
 		port_tx_burst(p, &tx_burst);
 	}
+
+	pthread_join(poller_thread, NULL);
+	cleanup(p, mp, xdp_prog, ifindex);
 
 	return EXIT_SUCCESS;
 }
